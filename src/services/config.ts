@@ -27,10 +27,15 @@ export async function updateSiteConfig(updates: Partial<SiteConfig>) {
 }
 
 export async function uploadCarouselImage(file: File): Promise<string> {
-  const fileName = `carousel/${Date.now()}-${file.name}`
+  const safeName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_')
+  const fileName = `carousel/${Date.now()}_${safeName}`
+
   const { error: uploadError } = await supabase.storage
     .from('alberca-files')
-    .upload(fileName, file)
+    .upload(fileName, file, {
+      cacheControl: '3600',
+      upsert: true,
+    })
 
   if (uploadError) throw uploadError
 
@@ -42,7 +47,6 @@ export async function uploadCarouselImage(file: File): Promise<string> {
 }
 
 export async function deleteCarouselImage(url: string) {
-  // Extract path from URL
   const path = url.split('/alberca-files/')[1]
   if (!path) return
   await supabase.storage.from('alberca-files').remove([path])
@@ -53,7 +57,6 @@ export async function getPriceForDate(dateStr: string, config: Partial<SiteConfi
   const day = date.getDay()
   const isWeekendDay = day === 0 || day === 6
 
-  // Check events for special price on this date
   const { data: events } = await supabase
     .from('events')
     .select('special_price, discount_percent, type')

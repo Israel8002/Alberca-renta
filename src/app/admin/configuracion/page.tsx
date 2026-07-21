@@ -36,15 +36,21 @@ export default function ConfiguracionPage() {
   const onDropCarousel = useCallback(async (files: File[]) => {
     setUploading(true)
     const urls: string[] = [...(config.carousel_images || [])]
+    let successCount = 0
     for (const file of files) {
       try {
         const url = await uploadCarouselImage(file)
         urls.push(url)
-      } catch { toast.error(`Error subiendo ${file.name}`) }
+        successCount++
+      } catch (err: any) {
+        toast.error(`Error subiendo ${file.name}: ${err?.message || 'Revisa permisos de Supabase Storage'}`)
+      }
     }
-    setConfig((prev: any) => ({ ...prev, carousel_images: urls }))
+    if (successCount > 0) {
+      setConfig((prev: any) => ({ ...prev, carousel_images: urls }))
+      toast.success(`${successCount} imagen(es) subida(s) correctamente`)
+    }
     setUploading(false)
-    toast.success('Imágenes subidas')
   }, [config.carousel_images])
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({

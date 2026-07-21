@@ -10,10 +10,10 @@ interface HeroCarouselProps {
   title: string
 }
 
-// 3 reliable high quality pool images
+// Default images including real Alberca Santo Niño photo
 const DEFAULT_PLACEHOLDERS = [
+  '/alberca1.jpg',
   'https://images.unsplash.com/photo-1576013551627-0cc20b96c2a7?auto=format&fit=crop&w=1600&q=80',
-  'https://images.unsplash.com/photo-1572331165267-854da2b10ccc?auto=format&fit=crop&w=1600&q=80',
   'https://images.unsplash.com/photo-1530541930197-ff16ac917b0e?auto=format&fit=crop&w=1600&q=80',
 ]
 
