@@ -23,7 +23,11 @@ export default function LoginPage() {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })
 
     if (error) {
-      toast.error('Correo o contraseña incorrectos')
+      if (error.message.toLowerCase().includes('email not confirmed')) {
+        toast.error('Por favor confirma tu correo electrónico antes de iniciar sesión')
+      } else {
+        toast.error(error.message || 'Correo o contraseña incorrectos')
+      }
       setLoading(false)
       return
     }
