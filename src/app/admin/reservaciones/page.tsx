@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Plus, Search, Loader2, X, MessageCircle, Check, CreditCard, AlertTriangle, UserCheck, Edit, FileText, Image as ImageIcon, PlusCircle } from 'lucide-react'
+import { Plus, Search, Loader2, X, MessageCircle, Check, CreditCard, AlertTriangle, UserCheck, Edit, FileText, Image as ImageIcon, PlusCircle, Trash2 } from 'lucide-react'
 import { createReservation, updateReservationPayment, deleteReservation } from '@/services/reservations'
 import { generateSendPaymentInfoLink, generateDateOccupiedNotificationLink, generatePaymentConfirmedLink, generateAdminPaymentReminderLink } from '@/lib/whatsapp'
 import toast from 'react-hot-toast'
@@ -179,14 +179,14 @@ export default function ReservacionesPage() {
       </div>
 
       {/* Filters */}
-      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 16, alignItems: 'center' }}>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 20, alignItems: 'center' }}>
         <div style={{ position: 'relative', flex: '1 1 240px' }}>
           <Search size={15} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)' }} />
           <input className="input-field" style={{ paddingLeft: 36, padding: '10px 12px 10px 36px' }} placeholder="Buscar cliente, WhatsApp o fecha…" value={search} onChange={e => setSearch(e.target.value)} />
         </div>
-        <div style={{ display: 'flex', gap: 6 }}>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           {statusFilters.map(f => (
-            <button key={f.key} onClick={() => setFilterStatus(f.key)} style={{ padding: '7px 12px', borderRadius: 999, border: filterStatus === f.key ? 'none' : '1px solid rgba(0,95,142,0.2)', background: filterStatus === f.key ? 'var(--color-primary)' : 'white', color: filterStatus === f.key ? 'white' : 'var(--color-text-muted)', fontWeight: 600, fontSize: '0.75rem', cursor: 'pointer' }}>
+            <button key={f.key} onClick={() => setFilterStatus(f.key)} style={{ padding: '8px 14px', borderRadius: 999, border: filterStatus === f.key ? 'none' : '1px solid rgba(0,95,142,0.2)', background: filterStatus === f.key ? 'var(--color-primary)' : 'white', color: filterStatus === f.key ? 'white' : 'var(--color-text-muted)', fontWeight: 600, fontSize: '0.78rem', cursor: 'pointer' }}>
               {f.label}
             </button>
           ))}
@@ -195,21 +195,23 @@ export default function ReservacionesPage() {
 
       {loading ? (
         <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}><Loader2 size={24} style={{ animation: 'spin 1s linear infinite' }} /></div>
+      ) : filtered.length === 0 ? (
+        <div style={{ padding: '32px', textAlign: 'center', color: 'var(--color-text-muted)', background: 'white', borderRadius: 16 }}>
+          No hay solicitudes en esta categoría
+        </div>
       ) : (
-        <div style={{ background: 'white', borderRadius: 16, overflow: 'hidden', border: '1px solid rgba(0,95,142,0.08)' }}>
-          {/* Table header */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1.3fr 1fr 1.1fr auto', gap: 0, background: '#F8FAFC', padding: '12px 16px', borderBottom: '1px solid rgba(0,95,142,0.08)', fontSize: '0.72rem', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            <span>Cliente / Solicitante</span>
-            <span>Fecha</span>
-            <span>Desglose de Monto</span>
-            <span>Comprobantes</span>
-            <span>Estado de Validación</span>
-            <span style={{ textAlign: 'right' }}>Acciones Admin</span>
-          </div>
-          {filtered.length === 0 ? (
-            <div style={{ padding: '32px', textAlign: 'center', color: 'var(--color-text-muted)' }}>No hay solicitudes en esta categoría</div>
-          ) : (
-            filtered.map((r, i) => {
+        <>
+          {/* DESKTOP TABLE VIEW (Visible on width >= 769px) */}
+          <div className="res-desktop-table" style={{ background: 'white', borderRadius: 16, overflow: 'hidden', border: '1px solid rgba(0,95,142,0.08)' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1.3fr 1fr 1.1fr auto', gap: 0, background: '#F8FAFC', padding: '12px 16px', borderBottom: '1px solid rgba(0,95,142,0.08)', fontSize: '0.72rem', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              <span>Cliente / Solicitante</span>
+              <span>Fecha</span>
+              <span>Desglose de Monto</span>
+              <span>Comprobantes</span>
+              <span>Estado de Validación</span>
+              <span style={{ textAlign: 'right' }}>Acciones Admin</span>
+            </div>
+            {filtered.map((r, i) => {
               const isCancelled = r.status === 'cancelado'
               const isValidated = (r.validated_by_admin || r.status === 'pagado') && !isCancelled
               const dateStr = new Date(r.date + 'T12:00:00').toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })
@@ -270,7 +272,7 @@ export default function ReservacionesPage() {
                     <button
                       onClick={() => openEditModal(r)}
                       title="Validar solicitud o registrar nuevo abono"
-                      style={{ padding: '6px 10px', background: 'linear-gradient(135deg, #005F8E, #00B4D8)', border: 'none', borderRadius: 8, color: 'white', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
+                      style={{ padding: '6px 12px', background: 'linear-gradient(135deg, #005F8E, #00B4D8)', border: 'none', borderRadius: 8, color: 'white', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
                     >
                       <UserCheck size={13} /> Validar / Abono
                     </button>
@@ -303,9 +305,137 @@ export default function ReservacionesPage() {
                   </div>
                 </div>
               )
-            })
-          )}
-        </div>
+            })}
+          </div>
+
+          {/* MOBILE CARDS VIEW (Visible on width <= 768px) */}
+          <div className="res-mobile-cards">
+            {filtered.map((r, i) => {
+              const isCancelled = r.status === 'cancelado'
+              const isValidated = (r.validated_by_admin || r.status === 'pagado') && !isCancelled
+              const dateStr = new Date(r.date + 'T12:00:00').toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
+              const createdTime = r.created_at ? new Date(r.created_at).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }) : ''
+              const paid = (r.deposit_amount || 0) + (r.abono_amount || 0)
+              const pending = (r.total_amount || 0) - paid
+
+              return (
+                <div
+                  key={r.id}
+                  className="card"
+                  style={{
+                    padding: 16,
+                    borderLeft: isCancelled ? '4px solid #EF4444' : (isValidated ? '4px solid #10B981' : '4px solid #F59E0B'),
+                    background: isCancelled ? '#FEF2F2' : (isValidated ? '#F0FDF4' : 'white'),
+                  }}
+                >
+                  {/* Card Header: Client & Badge */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <p style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--color-text)' }}>{r.user_name}</p>
+                        <span style={{ fontSize: '0.65rem', padding: '2px 6px', borderRadius: 999, background: '#E0F7FF', color: 'var(--color-primary)', fontWeight: 800 }}>
+                          #{i + 1}
+                        </span>
+                      </div>
+                      <p style={{ fontSize: '0.78rem', color: 'var(--color-text-muted)' }}>
+                        📱 WhatsApp: <strong>{r.user_whatsapp}</strong> {createdTime && `· 🕒 ${createdTime}`}
+                      </p>
+                    </div>
+                    <div>
+                      {isCancelled ? (
+                        <span className="badge badge-cancelado" style={{ fontSize: '0.7rem' }}>❌ Ocupada</span>
+                      ) : isValidated ? (
+                        <span className="badge badge-pagado" style={{ fontSize: '0.7rem' }}>✅ Validado</span>
+                      ) : (
+                        <span className="badge badge-apartado" style={{ fontSize: '0.7rem' }}>⏳ Pendiente</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Date & Time Slot */}
+                  <div style={{ background: '#F8FAFC', borderRadius: 10, padding: '10px 12px', marginBottom: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <p style={{ fontSize: '0.72rem', color: 'var(--color-text-muted)', fontWeight: 600 }}>Fecha Solicitada</p>
+                      <p style={{ fontWeight: 700, fontSize: '0.9rem' }}>{dateStr}</p>
+                    </div>
+                    <span style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--color-primary)', background: '#E0F7FF', padding: '3px 8px', borderRadius: 6 }}>
+                      {r.time_slot === 'fin_de_semana' ? 'S-D (Fin de semana)' : 'L-V (Entre semana)'}
+                    </span>
+                  </div>
+
+                  {/* Breakdown Card */}
+                  <div style={{ background: 'white', border: '1px solid #E2E8F0', borderRadius: 10, padding: '10px 12px', marginBottom: 12, fontSize: '0.82rem', fontFamily: 'monospace' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
+                      <span>Total Evento:</span>
+                      <strong>{formatMXN(r.total_amount || 0)}</strong>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', color: '#059669', marginBottom: 2 }}>
+                      <span>Anticipo Base:</span>
+                      <strong>{formatMXN(r.deposit_amount || 0)}</strong>
+                    </div>
+                    {r.abono_amount > 0 && (
+                      <div style={{ display: 'flex', justifyContent: 'space-between', color: '#3B82F6', marginBottom: 2 }}>
+                        <span>Abonos Adicionales:</span>
+                        <strong>{formatMXN(r.abono_amount)}</strong>
+                      </div>
+                    )}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', color: pending > 0 ? '#EF4444' : '#059669', borderTop: '1px solid #E2E8F0', paddingTop: 4, marginTop: 4, fontWeight: 700 }}>
+                      <span>Pendiente:</span>
+                      <strong>{formatMXN(pending)}</strong>
+                    </div>
+                  </div>
+
+                  {/* Proof Button */}
+                  {r.proof_urls?.length > 0 && (
+                    <div style={{ marginBottom: 12 }}>
+                      <button
+                        onClick={() => setViewingProofs(r.proof_urls)}
+                        style={{ width: '100%', padding: '8px', background: '#D1FAE5', border: '1px solid #6EE7B7', borderRadius: 8, fontSize: '0.78rem', color: '#065F46', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                      >
+                        <ImageIcon size={15} /> Ver {r.proof_urls.length} comprobante(s) subidos
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Action Buttons grid */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 4 }}>
+                    <button
+                      onClick={() => openEditModal(r)}
+                      style={{ padding: '10px 8px', background: 'linear-gradient(135deg, #005F8E, #00B4D8)', border: 'none', borderRadius: 10, color: 'white', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}
+                    >
+                      <UserCheck size={14} /> Validar / Abono
+                    </button>
+
+                    <a
+                      href={generateSendPaymentInfoLink({ clientName: r.user_name, clientPhone: r.user_whatsapp, date: r.date, paymentInfo, siteTitle })}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ padding: '10px 8px', background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 10, color: '#065F46', fontSize: '0.78rem', fontWeight: 700, textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}
+                    >
+                      <CreditCard size={14} color="#25D366" /> Datos Pago
+                    </a>
+
+                    {!isCancelled && (
+                      <button
+                        onClick={() => handleNotifyOccupied(r)}
+                        style={{ padding: '10px 8px', background: '#FFF1F2', border: '1px solid #FECDD3', borderRadius: 10, color: '#991B1B', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}
+                      >
+                        <AlertTriangle size={14} color="#DC2626" /> Ocupada
+                      </button>
+                    )}
+
+                    <button
+                      onClick={() => handleDelete(r.id)}
+                      style={{ padding: '10px 8px', background: '#F3F4F6', border: '1px solid #E5E7EB', borderRadius: 10, color: '#6B7280', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}
+                    >
+                      <Trash2 size={14} color="#EF4444" /> Eliminar
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </>
       )}
 
       {/* VALIDAR Y REGISTRAR ABONOS MODAL */}
@@ -479,7 +609,18 @@ export default function ReservacionesPage() {
           </div>
         </div>
       )}
-      <style jsx global>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+
+      <style jsx global>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @media (min-width: 769px) {
+          .res-desktop-table { display: block !important; }
+          .res-mobile-cards { display: none !important; }
+        }
+        @media (max-width: 768px) {
+          .res-desktop-table { display: none !important; }
+          .res-mobile-cards { display: flex !important; flex-direction: column; gap: 14px; }
+        }
+      `}</style>
     </div>
   )
 }
