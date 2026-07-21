@@ -1,23 +1,14 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { ChevronLeft, ChevronRight, X, MessageCircle, Calendar, Clock, DollarSign, Info } from 'lucide-react'
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, addMonths, subMonths, getDay, startOfWeek, endOfWeek } from 'date-fns'
+import Link from 'next/link'
+import { ChevronLeft, ChevronRight, X, MessageCircle, Clock, DollarSign, Info, ShieldCheck, Lock, CheckCircle2 } from 'lucide-react'
+import { format, startOfMonth, endOfMonth, isSameMonth, isToday, addMonths, subMonths, startOfWeek, endOfWeek } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { createClient } from '@/lib/supabase/client'
-import { SiteConfig, CalendarEvent } from '@/types'
-import { generateClientApartadoLink, generateDateInfoLink } from '@/lib/whatsapp'
+import { SiteConfig } from '@/types'
+import { generateClientApartadoLink } from '@/lib/whatsapp'
 import toast from 'react-hot-toast'
-
-const STATUS_COLORS: Record<string, { bg: string; text: string; label: string }> = {
-  apartado:    { bg: '#FEF3C7', text: '#92400E', label: 'Apartado' },
-  abono:       { bg: '#DBEAFE', text: '#1E40AF', label: 'Con Abono' },
-  pagado:      { bg: '#D1FAE5', text: '#065F46', label: 'Pagado' },
-  cancelado:   { bg: '#F3F4F6', text: '#6B7280', label: 'Disponible' },
-  promotion:   { bg: '#EDE9FE', text: '#5B21B6', label: 'Promoción' },
-  maintenance: { bg: '#F3F4F6', text: '#374151', label: 'No disponible' },
-  available:   { bg: 'transparent', text: '#059669', label: 'Disponible' },
-}
 
 type DayStatus = 'available' | 'apartado' | 'abono' | 'pagado' | 'maintenance' | 'promotion' | 'cancelado'
 
@@ -57,14 +48,51 @@ export default function PublicCalendar({ config, adminWhatsapp }: { config: Part
   const [dayData, setDayData] = useState<Record<string, DayData>>({})
   const [selectedDay, setSelectedDay] = useState<Date | null>(null)
   const [loading, setLoading] = useState(false)
-  const [userName, setUserName] = useState('')
-  const [userPhone, setUserPhone] = useState('')
+
+  // Auth & Profile state
+  const [userProfile, setUserProfile] = useState<{ name: string; whatsapp: string } | null>(null)
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [selectedAdminPhone, setSelectedAdminPhone] = useState('')
+
   const supabase = createClient()
+
+  // Load auth user and profile
+  useEffect(() => {
+    async function checkAuth() {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        setIsLoggedIn(true)
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('name, whatsapp')
+          .eq('id', user.id)
+          .maybeSingle()
+
+        setUserProfile({
+          name: profile?.name || user.user_metadata?.name || user.email?.split('@')[0] || 'Cliente',
+          whatsapp: profile?.whatsapp || user.user_metadata?.whatsapp || '',
+        })
+      } else {
+        setIsLoggedIn(false)
+        setUserProfile(null)
+      }
+    }
+    checkAuth()
+  }, [])
+
+  // Admin WhatsApp numbers selection
+  const adminPhones = (config.admin_whatsapp_numbers && config.admin_whatsapp_numbers.length > 0)
+    ? config.admin_whatsapp_numbers
+    : (adminWhatsapp ? [adminWhatsapp] : [])
+
+  useEffect(() => {
+    if (adminPhones.length > 0 && !selectedAdminPhone) {
+      setSelectedAdminPhone(adminPhones[0])
+    }
+  }, [adminPhones, selectedAdminPhone])
 
   const loadMonthData = useCallback(async (month: Date) => {
     setLoading(true)
-    const year = month.getFullYear()
-    const m = month.getMonth() + 1
     const start = format(startOfMonth(month), 'yyyy-MM-dd')
     const end = format(endOfMonth(month), 'yyyy-MM-dd')
 
@@ -132,18 +160,24 @@ export default function PublicCalendar({ config, adminWhatsapp }: { config: Part
 
   function handleApartar() {
     if (!selectedDay) return
-    if (!userName.trim() || !userPhone.trim()) {
-      toast.error('Ingresa tu nombre y número de WhatsApp')
+    if (!isLoggedIn || !userProfile) {
+      toast.error('Debes iniciar sesión para apartar')
       return
     }
+
     const dayInfo = getDayInfo(selectedDay)
     const price = dayInfo.price || getMXNPrice(config, selectedDay)
-    const adminPhone = config.admin_whatsapp_numbers?.[0] || adminWhatsapp
+    const adminPhoneToUse = selectedAdminPhone || adminPhones[0] || ''
+
+    if (!adminPhoneToUse) {
+      toast.error('No se ha configurado un número de administrador')
+      return
+    }
 
     const link = generateClientApartadoLink({
-      clientName: userName,
-      clientPhone: userPhone,
-      adminPhone,
+      clientName: userProfile.name,
+      clientPhone: userProfile.whatsapp,
+      adminPhone: adminPhoneToUse,
       date: format(selectedDay, 'yyyy-MM-dd'),
       timeSlot: getTimeSlot(selectedDay),
       totalAmount: price,
@@ -152,24 +186,18 @@ export default function PublicCalendar({ config, adminWhatsapp }: { config: Part
     window.open(link, '_blank')
   }
 
-  function handleInfo() {
-    if (!selectedDay) return
-    const dayInfo = getDayInfo(selectedDay)
-    const price = dayInfo.price || getMXNPrice(config, selectedDay)
-    const adminPhone = config.admin_whatsapp_numbers?.[0] || adminWhatsapp
-
-    const link = generateDateInfoLink({
-      adminPhone,
-      date: format(selectedDay, 'yyyy-MM-dd'),
-      timeSlot: getTimeSlot(selectedDay),
-      price,
-      eventDescription: dayInfo.eventTitle,
-    })
-    window.open(link, '_blank')
-  }
-
   const selectedInfo = selectedDay ? getDayInfo(selectedDay) : null
   const selectedPrice = selectedDay ? (selectedInfo?.price || getMXNPrice(config, selectedDay)) : 0
+  const dateFormatted = selectedDay ? format(selectedDay, "EEEE d 'de' MMMM, yyyy", { locale: es }) : ''
+
+  // Preview message text
+  const previewMessage = selectedDay && userProfile ? `Hola! 👋 Soy *${userProfile.name}*, me gustaría apartar la alberca.
+
+📅 *Fecha:* ${dateFormatted}
+⏰ *Horario:* ${getTimeSlotLabel(selectedDay)}
+💰 *Costo total:* ${formatMXN(selectedPrice)}
+
+He revisado la información. ¿Pueden confirmar disponibilidad?` : ''
 
   return (
     <div style={{ maxWidth: 900, margin: '0 auto', padding: '0 16px' }}>
@@ -337,7 +365,7 @@ export default function PublicCalendar({ config, adminWhatsapp }: { config: Part
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
               <div>
                 <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.4rem', textTransform: 'capitalize', marginBottom: 4 }}>
-                  {format(selectedDay, "EEEE d 'de' MMMM, yyyy", { locale: es })}
+                  {dateFormatted}
                 </h3>
                 {selectedInfo?.status === 'promotion' && selectedInfo.eventTitle && (
                   <span className="badge badge-promo">🎉 {selectedInfo.eventTitle}</span>
@@ -348,8 +376,8 @@ export default function PublicCalendar({ config, adminWhatsapp }: { config: Part
               </button>
             </div>
 
-            {/* Info rows */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 24 }}>
+            {/* Day Info Cards */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 20 }}>
               <div style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '12px 16px', background: '#F0FAFF', borderRadius: 12 }}>
                 <Clock size={18} color="var(--color-primary)" />
                 <div>
@@ -365,7 +393,7 @@ export default function PublicCalendar({ config, adminWhatsapp }: { config: Part
                     {formatMXN(selectedPrice)}
                   </p>
                   {config.deposit_amount ? (
-                    <p style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>Apartado: {formatMXN(config.deposit_amount)}</p>
+                    <p style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>Monto de apartado: {formatMXN(config.deposit_amount)}</p>
                   ) : null}
                 </div>
               </div>
@@ -380,46 +408,98 @@ export default function PublicCalendar({ config, adminWhatsapp }: { config: Part
               )}
             </div>
 
-            {/* User form */}
+            {/* AUTH CHECK & RESERVATION SECTION */}
             <div style={{ borderTop: '1px solid #E5E7EB', paddingTop: 20 }}>
-              <p style={{ fontWeight: 600, marginBottom: 12, color: 'var(--color-text)' }}>
-                📱 Para apartar, ingresa tus datos:
-              </p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
-                <input
-                  className="input-field"
-                  placeholder="Tu nombre completo"
-                  value={userName}
-                  onChange={e => setUserName(e.target.value)}
-                />
-                <input
-                  className="input-field"
-                  placeholder="Tu WhatsApp (ej: 3311234567)"
-                  type="tel"
-                  value={userPhone}
-                  onChange={e => setUserPhone(e.target.value)}
-                />
-              </div>
-              <div style={{ display: 'flex', gap: 10 }}>
-                <button
-                  onClick={handleApartar}
-                  className="btn-whatsapp"
-                  style={{ flex: 1, padding: '14px' }}
-                >
-                  <MessageCircle size={18} />
-                  Apartar esta fecha
-                </button>
-                <button
-                  onClick={handleInfo}
-                  className="btn-secondary"
-                  style={{ padding: '14px 18px' }}
-                >
-                  <Info size={18} />
-                </button>
-              </div>
-              <p style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', textAlign: 'center', marginTop: 8 }}>
-                Al presionar el botón se abrirá WhatsApp con un mensaje pre-cargado.
-              </p>
+              {!isLoggedIn ? (
+                /* Unauthenticated View */
+                <div style={{ background: '#FFFBEB', border: '1px solid #F59E0B', borderRadius: 16, padding: 20, textAlign: 'center' }}>
+                  <Lock size={28} color="#D97706" style={{ margin: '0 auto 10px' }} />
+                  <p style={{ fontWeight: 700, color: '#92400E', fontSize: '1.05rem', marginBottom: 6 }}>
+                    Inicia sesión para apartar esta fecha
+                  </p>
+                  <p style={{ fontSize: '0.875rem', color: '#B45309', marginBottom: 16 }}>
+                    Para seguridad de tus datos y agilizar tu apartado, debes contar con un usuario registrado.
+                  </p>
+                  <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+                    <Link href="/login" className="btn-secondary" style={{ padding: '10px 20px', fontSize: '0.875rem' }}>
+                      Iniciar Sesión
+                    </Link>
+                    <Link href="/registro" className="btn-primary" style={{ padding: '10px 20px', fontSize: '0.875rem' }}>
+                      Crear Cuenta
+                    </Link>
+                  </div>
+                </div>
+              ) : (
+                /* Authenticated User View */
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+                  {/* Logged in User Badge */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 12 }}>
+                    <CheckCircle2 size={20} color="#059669" />
+                    <div>
+                      <p style={{ fontSize: '0.78rem', color: '#065F46', fontWeight: 600 }}>Usuario registrado</p>
+                      <p style={{ fontWeight: 700, color: '#064E3B', fontSize: '0.9375rem' }}>
+                        {userProfile?.name} {userProfile?.whatsapp ? `(📱 ${userProfile.whatsapp})` : ''}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Admin WhatsApp Number Selector */}
+                  {adminPhones.length > 1 && (
+                    <div>
+                      <label className="label" style={{ marginBottom: 6 }}>
+                        📱 Selecciona el número de WhatsApp de atención:
+                      </label>
+                      <select
+                        className="input-field"
+                        value={selectedAdminPhone}
+                        onChange={e => setSelectedAdminPhone(e.target.value)}
+                        style={{ fontSize: '0.9rem', fontWeight: 600 }}
+                      >
+                        {adminPhones.map((phone, idx) => (
+                          <option key={idx} value={phone}>
+                            WhatsApp Administrador #{idx + 1} (+52 {phone})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {/* WhatsApp Message Preview */}
+                  <div>
+                    <label className="label" style={{ marginBottom: 6 }}>
+                      💬 Vista Previa del Mensaje a Enviar:
+                    </label>
+                    <div style={{
+                      background: '#F0F4F0',
+                      border: '1px solid #D1FAE5',
+                      borderRadius: 12,
+                      padding: '14px 16px',
+                      fontSize: '0.85rem',
+                      lineHeight: 1.6,
+                      whiteSpace: 'pre-line',
+                      fontFamily: 'Inter, sans-serif',
+                      color: '#064E3B',
+                    }}>
+                      {previewMessage}
+                    </div>
+                  </div>
+
+                  {/* Main Action Button */}
+                  <button
+                    onClick={handleApartar}
+                    className="btn-whatsapp"
+                    style={{ width: '100%', padding: '14px', fontSize: '1rem', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+                  >
+                    <MessageCircle size={20} />
+                    Apartar esta fecha por WhatsApp
+                  </button>
+
+                  <p style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', textAlign: 'center' }}>
+                    Al presionar se abrirá la app de WhatsApp con el mensaje pre-cargado enviado al administrador.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </div>
