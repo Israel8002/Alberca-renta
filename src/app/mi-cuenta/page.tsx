@@ -2,11 +2,12 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Upload, Loader2, MessageCircle, Calendar, X } from 'lucide-react'
+import { Upload, Loader2, Calendar, Shield } from 'lucide-react'
 import { getMyReservations, uploadProofAndUpdate } from '@/services/reservations'
 import Navbar from '@/components/ui/Navbar'
 import toast from 'react-hot-toast'
 import { useDropzone } from 'react-dropzone'
+import Link from 'next/link'
 
 function formatMXN(n: number) {
   return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(n)
@@ -76,28 +77,30 @@ export default function MiCuentaPage() {
       getMyReservations(),
     ])
 
-    setProfile(profileData)
+    setProfile(profileData || { name: user.user_metadata?.name || user.email })
     setReservations(reservs)
     setLoading(false)
   }
 
+  const isAdmin = profile?.role === 'superadmin' || profile?.role === 'admin'
+
   return (
     <>
-      <Navbar userName={profile?.name} />
+      <Navbar userName={profile?.name} isAdmin={isAdmin} />
       <main style={{ minHeight: '100vh', background: 'var(--color-bg)', paddingBottom: 60 }}>
         {/* Header */}
         <div className="water-gradient" style={{ padding: '40px 24px 50px', marginBottom: '-20px' }}>
           <div style={{ maxWidth: 720, margin: '0 auto' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
               <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', fontWeight: 700, color: 'white', border: '2px solid rgba(255,255,255,0.4)' }}>
-                {profile?.name?.charAt(0)?.toUpperCase()}
+                {profile?.name?.charAt(0)?.toUpperCase() || 'U'}
               </div>
               <div>
                 <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.5rem', color: 'white', marginBottom: 2 }}>
-                  Hola, {profile?.name}! 👋
+                  Hola, {profile?.name || 'Usuario'}! 👋
                 </h1>
-                <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.875rem' }}>
-                  📱 {profile?.whatsapp}
+                <p style={{ color: 'rgba(255,255,255,0.85)', fontSize: '0.875rem' }}>
+                  {profile?.whatsapp ? `📱 ${profile.whatsapp}` : profile?.email || ''}
                 </p>
               </div>
             </div>
@@ -105,13 +108,46 @@ export default function MiCuentaPage() {
         </div>
 
         <div style={{ maxWidth: 720, margin: '0 auto', padding: '0 16px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+
+          {/* Admin Banner if superadmin/admin */}
+          {isAdmin && (
+            <div style={{
+              background: 'linear-gradient(135deg, #FFFBEB, #FEF3C7)',
+              border: '1px solid #F59E0B',
+              borderRadius: 14,
+              padding: '16px 20px',
+              marginTop: 32,
+              marginBottom: 16,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 12,
+              boxShadow: '0 4px 12px rgba(245,158,11,0.15)',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <Shield size={22} color="#D97706" />
+                <div>
+                  <p style={{ fontWeight: 700, color: '#92400E', fontSize: '0.9375rem' }}>
+                    Modo {profile.role === 'superadmin' ? '⭐ Superadmin' : '🔑 Admin'} Activo
+                  </p>
+                  <p style={{ fontSize: '0.78rem', color: '#B45309' }}>
+                    Tienes acceso total al panel de administración del sistema.
+                  </p>
+                </div>
+              </div>
+              <Link href="/admin" className="btn-primary" style={{ padding: '8px 16px', fontSize: '0.85rem', flexShrink: 0 }}>
+                Ir al Panel Admin →
+              </Link>
+            </div>
+          )}
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: isAdmin ? 12 : 32, marginBottom: 20 }}>
             <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.25rem' }}>
               Mis Reservaciones
             </h2>
-            <a href="/reservar" className="btn-primary" style={{ padding: '9px 18px', fontSize: '0.875rem' }}>
+            <Link href="/reservar" className="btn-primary" style={{ padding: '9px 18px', fontSize: '0.875rem', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
               <Calendar size={15} /> Nueva Reservación
-            </a>
+            </Link>
           </div>
 
           {loading ? (
@@ -123,7 +159,7 @@ export default function MiCuentaPage() {
               <p style={{ fontSize: '3rem', marginBottom: 12 }}>🏊</p>
               <p style={{ fontWeight: 700, fontSize: '1.1rem', marginBottom: 8 }}>Aún no tienes reservaciones</p>
               <p style={{ color: 'var(--color-text-muted)', marginBottom: 20 }}>¡Reserva tu fecha en el calendario y disfruta de un día increíble!</p>
-              <a href="/reservar" className="btn-primary">Ver disponibilidad</a>
+              <Link href="/reservar" className="btn-primary">Ver disponibilidad</Link>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
