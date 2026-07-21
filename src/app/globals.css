@@ -360,3 +360,24 @@ h1, h2, h3, h4 {
   background: linear-gradient(to right, transparent, rgba(0,95,142,0.15), transparent);
   margin: 24px 0;
 }
+
+/* =============================================
+   RESPONSIVE ADMIN & NAVIGATION RULES
+   ============================================= */
+@media (max-width: 768px) {
+  .admin-layout-container {
+    flex-direction: column !important;
+  }
+  .admin-topbar-desktop {
+    display: none !important;
+  }
+  .admin-main-content {
+    padding: 16px !important;
+  }
+}
+@media (min-width: 769px) {
+  .admin-main-content {
+    padding: 28px !important;
+  }
+}
+

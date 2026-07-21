@@ -19,13 +19,14 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   }
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--color-bg)' }}>
+    <div className="admin-layout-container" style={{ display: 'flex', minHeight: '100vh', background: 'var(--color-bg)' }}>
       <AdminSidebar role={profile.role} />
-      <main style={{ flex: 1, overflow: 'auto' }}>
-        {/* Top bar */}
+      <main style={{ flex: 1, overflow: 'auto', minWidth: 0 }}>
+        {/* Top bar (Desktop only) */}
         <div
+          className="admin-topbar-desktop"
           style={{
-            padding: '16px 28px',
+            padding: '14px 28px',
             background: 'white',
             borderBottom: '1px solid rgba(0,95,142,0.08)',
             display: 'flex',
@@ -58,7 +59,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
                 fontSize: '0.875rem',
               }}
             >
-              {profile.name?.charAt(0).toUpperCase()}
+              {profile.name?.charAt(0).toUpperCase() || 'A'}
             </div>
             <div>
               <p style={{ fontWeight: 600, fontSize: '0.875rem', lineHeight: 1.2 }}>{profile.name}</p>
@@ -68,7 +69,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         </div>
 
         {/* Page content */}
-        <div style={{ padding: '28px' }}>
+        <div className="admin-main-content">
           {children}
         </div>
       </main>

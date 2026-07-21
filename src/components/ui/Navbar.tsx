@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { Waves, LogOut, Shield, User as UserIcon } from 'lucide-react'
+import { Waves, LogOut, Shield, User as UserIcon, Menu, X, Calendar, DollarSign } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 interface NavbarProps {
@@ -23,6 +23,7 @@ export default function Navbar({ isAdmin: propIsAdmin, userName: propUserName }:
     isAdmin: !!propIsAdmin,
   })
   const [loading, setLoading] = useState(true)
+  const [mobileOpen, setMobileOpen] = useState(false)
 
   const pathname = usePathname()
   const router = useRouter()
@@ -65,10 +66,16 @@ export default function Navbar({ isAdmin: propIsAdmin, userName: propUserName }:
     return () => subscription.unsubscribe()
   }, [pathname])
 
+  // Close mobile menu on route change
+  useEffect(() => {
+    setMobileOpen(false)
+  }, [pathname])
+
   async function handleLogout() {
     await supabase.auth.signOut()
     toast.success('Sesión cerrada')
     setUserState({ loggedIn: false, name: '', isAdmin: false })
+    setMobileOpen(false)
     router.push('/')
     router.refresh()
   }
@@ -83,7 +90,7 @@ export default function Navbar({ isAdmin: propIsAdmin, userName: propUserName }:
         position: 'sticky',
         top: 0,
         zIndex: 100,
-        background: 'rgba(255,255,255,0.95)',
+        background: 'rgba(255,255,255,0.96)',
         backdropFilter: 'blur(16px)',
         borderBottom: '1px solid rgba(0,95,142,0.08)',
         boxShadow: '0 2px 16px rgba(0,95,142,0.06)',
@@ -150,8 +157,8 @@ export default function Navbar({ isAdmin: propIsAdmin, userName: propUserName }:
           </div>
         </Link>
 
-        {/* Nav Links */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        {/* Desktop Links (Hidden on mobile) */}
+        <div className="nav-desktop" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <Link
             href="/reservar"
             style={{
@@ -241,7 +248,165 @@ export default function Navbar({ isAdmin: propIsAdmin, userName: propUserName }:
             )
           )}
         </div>
+
+        {/* Mobile Hamburger Button */}
+        <button
+          className="nav-mobile-toggle"
+          onClick={() => setMobileOpen(!mobileOpen)}
+          style={{
+            background: 'none',
+            border: 'none',
+            padding: 8,
+            cursor: 'pointer',
+            color: 'var(--color-primary)',
+          }}
+          aria-label="Abrir menú"
+        >
+          {mobileOpen ? <X size={26} /> : <Menu size={26} />}
+        </button>
       </div>
+
+      {/* Mobile Menu Dropdown */}
+      {mobileOpen && (
+        <div
+          className="nav-mobile-menu animate-fade-in"
+          style={{
+            background: 'white',
+            borderBottom: '1px solid rgba(0,95,142,0.1)',
+            padding: '16px 20px 24px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 12,
+            boxShadow: '0 12px 30px rgba(0,0,0,0.12)',
+          }}
+        >
+          <Link
+            href="/reservar"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              padding: '12px 16px',
+              borderRadius: 10,
+              background: 'var(--color-bg)',
+              color: 'var(--color-text)',
+              fontWeight: 600,
+              textDecoration: 'none',
+            }}
+          >
+            <Calendar size={18} color="var(--color-primary)" />
+            Calendario de Disponibilidad
+          </Link>
+          <Link
+            href="/#info"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              padding: '12px 16px',
+              borderRadius: 10,
+              background: 'var(--color-bg)',
+              color: 'var(--color-text)',
+              fontWeight: 600,
+              textDecoration: 'none',
+            }}
+          >
+            <DollarSign size={18} color="var(--color-primary)" />
+            Costos e Información
+          </Link>
+
+          <div style={{ height: 1, background: '#E5E7EB', margin: '4px 0' }} />
+
+          {isUserLoggedIn ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {isAdminUser && (
+                <Link
+                  href="/admin"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 8,
+                    padding: '14px',
+                    background: 'linear-gradient(135deg, #005F8E, #00B4D8)',
+                    color: 'white',
+                    fontWeight: 700,
+                    borderRadius: 12,
+                    textDecoration: 'none',
+                  }}
+                >
+                  <Shield size={18} />
+                  Ir al Panel de Administración
+                </Link>
+              )}
+              <Link
+                href="/mi-cuenta"
+                className="btn-primary"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                  padding: '14px',
+                  borderRadius: 12,
+                }}
+              >
+                <UserIcon size={18} />
+                Mi Cuenta ({displayName})
+              </Link>
+              <button
+                onClick={handleLogout}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                  padding: '12px',
+                  background: '#FEE2E2',
+                  border: 'none',
+                  borderRadius: 12,
+                  color: '#DC2626',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  fontSize: '0.9375rem',
+                }}
+              >
+                <LogOut size={18} />
+                Cerrar Sesión
+              </button>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <Link
+                href="/login"
+                className="btn-secondary"
+                style={{ textAlign: 'center', padding: '12px' }}
+              >
+                Iniciar Sesión
+              </Link>
+              <Link
+                href="/registro"
+                className="btn-primary"
+                style={{ textAlign: 'center', padding: '12px' }}
+              >
+                Registrarse
+              </Link>
+            </div>
+          )}
+        </div>
+      )}
+
+      <style jsx global>{`
+        @media (min-width: 769px) {
+          .nav-mobile-toggle { display: none !important; }
+          .nav-mobile-menu { display: none !important; }
+          .nav-desktop { display: flex !important; }
+        }
+        @media (max-width: 768px) {
+          .nav-desktop { display: none !important; }
+          .nav-mobile-toggle { display: block !important; }
+        }
+      `}</style>
     </nav>
   )
 }
