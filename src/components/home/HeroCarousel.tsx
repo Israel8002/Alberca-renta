@@ -3,12 +3,19 @@
 import { useEffect, useState } from 'react'
 import useEmblaCarousel from 'embla-carousel-react'
 import Autoplay from 'embla-carousel-autoplay'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Waves } from 'lucide-react'
 
 interface HeroCarouselProps {
   images: string[]
   title: string
 }
+
+// 3 reliable high quality pool images
+const DEFAULT_PLACEHOLDERS = [
+  'https://images.unsplash.com/photo-1576013551627-0cc20b96c2a7?auto=format&fit=crop&w=1600&q=80',
+  'https://images.unsplash.com/photo-1572331165267-854da2b10ccc?auto=format&fit=crop&w=1600&q=80',
+  'https://images.unsplash.com/photo-1530541930197-ff16ac917b0e?auto=format&fit=crop&w=1600&q=80',
+]
 
 export default function HeroCarousel({ images, title }: HeroCarouselProps) {
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true }, [
@@ -16,14 +23,9 @@ export default function HeroCarousel({ images, title }: HeroCarouselProps) {
   ])
   const [current, setCurrent] = useState(0)
   const [count, setCount] = useState(0)
+  const [failedImages, setFailedImages] = useState<Record<number, boolean>>({})
 
-  const placeholders = [
-    'https://images.unsplash.com/photo-1572462027731-7f5f7cf8b7e9?w=1200&q=80',
-    'https://images.unsplash.com/photo-1555597673-b21d5c935865?w=1200&q=80',
-    'https://images.unsplash.com/photo-1519315901367-f34ff9154487?w=1200&q=80',
-  ]
-
-  const slides = images.length > 0 ? images : placeholders
+  const validImages = images && images.length > 0 ? images : DEFAULT_PLACEHOLDERS
 
   useEffect(() => {
     if (!emblaApi) return
@@ -31,24 +33,41 @@ export default function HeroCarousel({ images, title }: HeroCarouselProps) {
     emblaApi.on('select', () => setCurrent(emblaApi.selectedScrollSnap()))
   }, [emblaApi])
 
+  function handleImageError(index: number) {
+    setFailedImages((prev) => ({ ...prev, [index]: true }))
+  }
+
   return (
-    <div className="relative w-full" style={{ height: 'calc(100vh - 80px)', minHeight: 500 }}>
+    <div className="relative w-full" style={{ height: 'calc(100vh - 80px)', minHeight: 520, background: '#0D2137' }}>
       {/* Carousel */}
       <div className="overflow-hidden h-full" ref={emblaRef}>
         <div className="flex h-full">
-          {slides.map((src, i) => (
-            <div key={i} className="relative flex-none w-full h-full">
-              <img
-                src={src}
-                alt={`Alberca Santo Niño ${i + 1}`}
-                className="w-full h-full object-cover"
-              />
+          {validImages.map((src, i) => (
+            <div key={i} className="relative flex-none w-full h-full" style={{ background: '#0D2137' }}>
+              {!failedImages[i] ? (
+                <img
+                  src={src}
+                  alt={`Alberca Santo Niño ${i + 1}`}
+                  className="w-full h-full object-cover"
+                  onError={() => handleImageError(i)}
+                />
+              ) : (
+                <div
+                  className="w-full h-full flex items-center justify-center"
+                  style={{
+                    background: 'linear-gradient(135deg, #0D2137 0%, #005F8E 50%, #00B4D8 100%)',
+                  }}
+                >
+                  <Waves size={80} color="rgba(255,255,255,0.2)" />
+                </div>
+              )}
+
               {/* Overlay gradient */}
               <div
                 className="absolute inset-0"
                 style={{
                   background:
-                    'linear-gradient(to right, rgba(0,31,55,0.75) 0%, rgba(0,31,55,0.3) 60%, transparent 100%)',
+                    'linear-gradient(to right, rgba(13,33,55,0.85) 0%, rgba(13,33,55,0.45) 60%, transparent 100%)',
                 }}
               />
             </div>
@@ -59,15 +78,15 @@ export default function HeroCarousel({ images, title }: HeroCarouselProps) {
       {/* Hero content */}
       <div
         className="absolute inset-0 flex items-center"
-        style={{ padding: '0 6vw' }}
+        style={{ padding: '0 6vw', pointerEvents: 'none' }}
       >
-        <div className="animate-fade-in" style={{ maxWidth: 560 }}>
+        <div className="animate-fade-in" style={{ maxWidth: 560, pointerEvents: 'auto' }}>
           {/* Badge */}
           <span
             className="inline-block text-white text-xs font-bold uppercase tracking-widest mb-4"
             style={{
-              background: 'rgba(0,180,216,0.3)',
-              border: '1px solid rgba(0,180,216,0.5)',
+              background: 'rgba(0,180,216,0.35)',
+              border: '1px solid rgba(0,180,216,0.6)',
               padding: '6px 16px',
               borderRadius: 999,
               backdropFilter: 'blur(8px)',
@@ -85,7 +104,7 @@ export default function HeroCarousel({ images, title }: HeroCarouselProps) {
               color: 'white',
               lineHeight: 1.15,
               marginBottom: 20,
-              textShadow: '0 2px 12px rgba(0,0,0,0.4)',
+              textShadow: '0 2px 12px rgba(0,0,0,0.5)',
             }}
           >
             {title || 'Alberca Santo Niño'}
@@ -94,11 +113,11 @@ export default function HeroCarousel({ images, title }: HeroCarouselProps) {
           {/* Subtitle */}
           <p
             style={{
-              color: 'rgba(255,255,255,0.88)',
+              color: 'rgba(255,255,255,0.9)',
               fontSize: '1.125rem',
               lineHeight: 1.7,
               marginBottom: 32,
-              textShadow: '0 1px 4px rgba(0,0,0,0.3)',
+              textShadow: '0 1px 4px rgba(0,0,0,0.4)',
             }}
           >
             El lugar ideal para disfrutar en familia. Reserva tu fecha en línea de
@@ -138,9 +157,9 @@ export default function HeroCarousel({ images, title }: HeroCarouselProps) {
               left: 20,
               top: '50%',
               transform: 'translateY(-50%)',
-              background: 'rgba(255,255,255,0.15)',
+              background: 'rgba(255,255,255,0.2)',
               backdropFilter: 'blur(8px)',
-              border: '1px solid rgba(255,255,255,0.3)',
+              border: '1px solid rgba(255,255,255,0.4)',
               borderRadius: '50%',
               width: 48,
               height: 48,
@@ -161,9 +180,9 @@ export default function HeroCarousel({ images, title }: HeroCarouselProps) {
               right: 20,
               top: '50%',
               transform: 'translateY(-50%)',
-              background: 'rgba(255,255,255,0.15)',
+              background: 'rgba(255,255,255,0.2)',
               backdropFilter: 'blur(8px)',
-              border: '1px solid rgba(255,255,255,0.3)',
+              border: '1px solid rgba(255,255,255,0.4)',
               borderRadius: '50%',
               width: 48,
               height: 48,

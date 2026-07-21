@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Waves, LogOut, Shield, User as UserIcon } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -22,28 +22,35 @@ export default function Navbar({ isAdmin: propIsAdmin, userName: propUserName }:
     name: propUserName || '',
     isAdmin: !!propIsAdmin,
   })
-  const [loading, setLoading] = useState(!propUserName)
+  const [loading, setLoading] = useState(true)
 
+  const pathname = usePathname()
   const router = useRouter()
   const supabase = createClient()
 
   useEffect(() => {
     async function checkUser() {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('name, role')
-          .eq('id', user.id)
-          .single()
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('name, role')
+            .eq('id', user.id)
+            .maybeSingle()
 
-        const isUserAdmin = profile?.role === 'superadmin' || profile?.role === 'admin'
-        setUserState({
-          loggedIn: true,
-          name: profile?.name || user.user_metadata?.name || user.email?.split('@')[0] || 'Usuario',
-          isAdmin: isUserAdmin,
-        })
-      } else {
+          const role = profile?.role || user.user_metadata?.role || 'cliente'
+          const isUserAdmin = role === 'superadmin' || role === 'admin' || pathname.startsWith('/admin')
+
+          setUserState({
+            loggedIn: true,
+            name: profile?.name || user.user_metadata?.name || user.email?.split('@')[0] || 'Usuario',
+            isAdmin: isUserAdmin,
+          })
+        } else {
+          setUserState({ loggedIn: false, name: '', isAdmin: false })
+        }
+      } catch {
         setUserState({ loggedIn: false, name: '', isAdmin: false })
       }
       setLoading(false)
@@ -56,7 +63,7 @@ export default function Navbar({ isAdmin: propIsAdmin, userName: propUserName }:
     })
 
     return () => subscription.unsubscribe()
-  }, [])
+  }, [pathname])
 
   async function handleLogout() {
     await supabase.auth.signOut()
@@ -67,7 +74,7 @@ export default function Navbar({ isAdmin: propIsAdmin, userName: propUserName }:
   }
 
   const isUserLoggedIn = userState.loggedIn || !!propUserName
-  const isAdminUser = userState.isAdmin || !!propIsAdmin
+  const isAdminUser = userState.isAdmin || propIsAdmin || pathname.startsWith('/admin')
   const displayName = userState.name || propUserName || ''
 
   return (
@@ -172,57 +179,57 @@ export default function Navbar({ isAdmin: propIsAdmin, userName: propUserName }:
             Costos
           </Link>
 
-          {!loading && (
-            isUserLoggedIn ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 8 }}>
-                {isAdminUser && (
-                  <Link
-                    href="/admin"
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 6,
-                      padding: '8px 14px',
-                      background: 'linear-gradient(135deg, #F4A623, #FBBF24)',
-                      color: 'white',
-                      fontWeight: 700,
-                      fontSize: '0.85rem',
-                      borderRadius: 10,
-                      textDecoration: 'none',
-                      boxShadow: '0 2px 8px rgba(244,166,35,0.3)',
-                    }}
-                  >
-                    <Shield size={15} />
-                    Panel Admin
-                  </Link>
-                )}
+          {isUserLoggedIn ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 8 }}>
+              {isAdminUser && (
                 <Link
-                  href="/mi-cuenta"
-                  className="btn-primary"
-                  style={{ padding: '8px 16px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: 6 }}
-                >
-                  <UserIcon size={15} />
-                  {displayName || 'Mi Cuenta'}
-                </Link>
-                <button
-                  onClick={handleLogout}
-                  title="Cerrar Sesión"
+                  href="/admin"
                   style={{
-                    background: '#FEE2E2',
-                    border: 'none',
-                    borderRadius: 10,
-                    padding: '8px 12px',
-                    cursor: 'pointer',
-                    color: '#DC2626',
                     display: 'flex',
                     alignItems: 'center',
-                    justifyContent: 'center',
+                    gap: 6,
+                    padding: '8px 14px',
+                    background: 'linear-gradient(135deg, #005F8E, #00B4D8)',
+                    color: 'white',
+                    fontWeight: 700,
+                    fontSize: '0.85rem',
+                    borderRadius: 10,
+                    textDecoration: 'none',
+                    boxShadow: '0 2px 8px rgba(0,95,142,0.25)',
                   }}
                 >
-                  <LogOut size={16} />
-                </button>
-              </div>
-            ) : (
+                  <Shield size={15} />
+                  Panel Admin
+                </Link>
+              )}
+              <Link
+                href="/mi-cuenta"
+                className="btn-primary"
+                style={{ padding: '8px 16px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: 6 }}
+              >
+                <UserIcon size={15} />
+                {displayName || 'Mi Cuenta'}
+              </Link>
+              <button
+                onClick={handleLogout}
+                title="Cerrar Sesión"
+                style={{
+                  background: '#FEE2E2',
+                  border: 'none',
+                  borderRadius: 10,
+                  padding: '8px 12px',
+                  cursor: 'pointer',
+                  color: '#DC2626',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <LogOut size={16} />
+              </button>
+            </div>
+          ) : (
+            !loading && (
               <div style={{ display: 'flex', gap: 8, marginLeft: 8 }}>
                 <Link href="/login" className="btn-secondary" style={{ padding: '8px 16px', fontSize: '0.85rem' }}>
                   Iniciar Sesión
