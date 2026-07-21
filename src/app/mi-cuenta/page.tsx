@@ -160,7 +160,8 @@ export default function MiCuentaPage() {
                 const isValidated = r.validated_by_admin || r.status === 'pagado' || r.status === 'abono'
                 const isPending = !isValidated && r.status === 'apartado'
 
-                const paid = (r.deposit_amount || 0) + (r.abono_amount || 0)
+                // Only count paid amount if validated by admin!
+                const paid = isValidated ? ((r.deposit_amount || 0) + (r.abono_amount || 0)) : 0
                 const pending = (r.total_amount || 0) - paid
                 const pct = r.total_amount ? Math.round((paid / r.total_amount) * 100) : 0
 
@@ -191,17 +192,20 @@ export default function MiCuentaPage() {
                     {isPending && (
                       <div style={{ background: '#FFFBEB', border: '1px solid #F59E0B', borderRadius: 10, padding: '10px 14px', marginBottom: 14 }}>
                         <p style={{ fontSize: '0.8rem', color: '#92400E', fontWeight: 600 }}>
-                          ⏳ Tu solicitud fue registrada. Para que el administrador valide tu fecha, realiza tu anticipo y sube tu comprobante abajo o envíalo por WhatsApp. El primer usuario en validar pago se queda con la fecha.
+                          ⏳ Tu solicitud fue registrada. Para que el administrador valide tu fecha y confirme tu anticipo, realiza tu pago y sube tu comprobante abajo o envíalo por WhatsApp. El primer usuario en validar pago se queda con la fecha.
                         </p>
                       </div>
                     )}
 
-                    {/* Payment progress */}
+                    {/* Payment progress - Validated by Admin */}
                     <div style={{ background: '#F3F4F6', borderRadius: 4, height: 8, overflow: 'hidden', marginBottom: 8 }}>
-                      <div style={{ height: '100%', width: `${pct}%`, background: pct === 100 ? '#059669' : 'var(--color-primary-lighter)', borderRadius: 4 }} />
+                      <div style={{ height: '100%', width: `${pct}%`, background: pct === 100 ? '#059669' : 'var(--color-primary-lighter)', borderRadius: 4, transition: 'width 0.3s' }} />
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 14, fontSize: '0.8rem', fontFamily: 'monospace' }}>
-                      <span style={{ color: 'var(--color-text-muted)' }}>Pagado/Anticipo: <strong style={{ color: '#059669' }}>{formatMXN(paid)}</strong></span>
+                      <span style={{ color: 'var(--color-text-muted)' }}>
+                        Pagado/Anticipo: <strong style={{ color: isValidated ? '#059669' : '#D97706' }}>{formatMXN(paid)}</strong>
+                        {!isValidated && <span style={{ fontSize: '0.7rem', color: '#B45309' }}> (Pendiente validación)</span>}
+                      </span>
                       <span style={{ color: 'var(--color-text-muted)' }}>Total: <strong>{formatMXN(r.total_amount || 0)}</strong></span>
                       {pending > 0 && <span style={{ color: '#EF4444' }}>Pendiente: <strong>{formatMXN(pending)}</strong></span>}
                     </div>
@@ -212,7 +216,7 @@ export default function MiCuentaPage() {
                         <p style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', fontWeight: 600, marginBottom: 6 }}>Comprobantes subidos:</p>
                         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                           {r.proof_urls.map((url: string, i: number) => (
-                            <a key={i} href={url} target="_blank" style={{ padding: '4px 10px', background: '#D1FAE5', borderRadius: 6, fontSize: '0.72rem', color: '#065F46', fontWeight: 600, textDecoration: 'none' }}>
+                            <a key={i} href={url} target="_blank" rel="noopener noreferrer" style={{ padding: '4px 10px', background: '#D1FAE5', borderRadius: 6, fontSize: '0.72rem', color: '#065F46', fontWeight: 600, textDecoration: 'none' }}>
                               📎 Comprobante {i + 1}
                             </a>
                           ))}
@@ -227,7 +231,7 @@ export default function MiCuentaPage() {
 
                     {r.status === 'pagado' && (
                       <div style={{ background: '#D1FAE5', borderRadius: 10, padding: '10px 14px', textAlign: 'center', marginTop: 8 }}>
-                        <p style={{ color: '#065F46', fontWeight: 700 }}>🎉 ¡Pago confirmado! Te esperamos en la alberca.</p>
+                        <p style={{ color: '#065F46', fontWeight: 700 }}>🎉 ¡Pago verificado y confirmado! Te esperamos en la alberca.</p>
                       </div>
                     )}
                   </div>

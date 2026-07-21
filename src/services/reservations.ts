@@ -82,6 +82,7 @@ export async function updateReservationStatus(id: string, status: ReservationSta
 
 export async function updateReservationPayment(id: string, params: {
   status?: ReservationStatus
+  total_amount?: number
   abono_amount?: number
   deposit_amount?: number
   validated_by_admin?: boolean

@@ -34,16 +34,18 @@ export default async function AdminDashboard() {
     { data: costs },
   ] = await Promise.all([
     supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'cliente'),
-    supabase.from('reservations').select('status, total_amount, deposit_amount, abono_amount, date').gte('date', startMonth),
-    supabase.from('reservations').select('*, profiles(name, whatsapp)').in('status', ['apartado', 'abono']).gte('date', today.toISOString().split('T')[0]).order('date', { ascending: true }).limit(5),
+    supabase.from('reservations').select('status, total_amount, deposit_amount, abono_amount, date, validated_by_admin').gte('date', startMonth),
+    supabase.from('reservations').select('*, profiles(name, whatsapp)').in('status', ['apartado', 'abono']).eq('validated_by_admin', true).gte('date', today.toISOString().split('T')[0]).order('date', { ascending: true }).limit(5),
     supabase.from('reservations').select('*').gte('date', today.toISOString().split('T')[0]).neq('status', 'cancelado').order('date', { ascending: true }).limit(5),
     supabase.from('costs').select('amount').gte('date', startMonth),
   ])
 
   const totalIncome = (reservations || []).reduce((sum, r) => {
+    if (!r.validated_by_admin && r.status !== 'pagado' && r.status !== 'abono') return sum
     const paid = (r.deposit_amount || 0) + (r.abono_amount || 0)
     return sum + (r.status === 'pagado' ? (r.total_amount || 0) : paid)
   }, 0)
+
   const totalCosts = (costs || []).reduce((sum, c) => sum + (c.amount || 0), 0)
   const pendingCount = (pendingPayments || []).length
 
@@ -61,16 +63,16 @@ export default async function AdminDashboard() {
           Panel de Administración
         </h1>
         <p style={{ color: 'var(--color-text-muted)' }}>
-          Alberca Santo Niño — {today.toLocaleDateString('es-MX', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+          Sistema Reservas v1.0 — {today.toLocaleDateString('es-MX', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
         </p>
       </div>
 
       {/* Stats */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16, marginBottom: 32 }}>
         <StatCard icon={Users} label="Clientes" value={totalClients || 0} color="#005F8E" />
-        <StatCard icon={TrendingUp} label="Ingresos del mes" value={formatMXN(totalIncome)} color="#059669" sub="Apartados + abonos + pagados" />
+        <StatCard icon={TrendingUp} label="Ingresos validados" value={formatMXN(totalIncome)} color="#059669" sub="Anticipos y abonos validados" />
         <StatCard icon={CreditCard} label="Costos del mes" value={formatMXN(totalCosts)} color="#EF4444" />
-        <StatCard icon={AlertCircle} label="Pagos pendientes" value={pendingCount} color="#F59E0B" sub="Apartados y abonos" />
+        <StatCard icon={AlertCircle} label="Pagos pendientes" value={pendingCount} color="#F59E0B" sub="Validados pendientes de liquidar" />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
@@ -103,7 +105,7 @@ export default async function AdminDashboard() {
         <div className="card">
           <h3 style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
             <AlertCircle size={18} color="#F59E0B" />
-            Pagos Pendientes
+            Pagos Pendientes Validados
           </h3>
           {(pendingPayments || []).length === 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '20px 0', color: '#059669' }}>
@@ -114,7 +116,7 @@ export default async function AdminDashboard() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {(pendingPayments || []).map((r: any) => {
                 const paid = (r.deposit_amount || 0) + (r.abono_amount || 0)
-                const pending = (r.total_amount || 0) - paid
+                const pending = Math.max(0, (r.total_amount || 0) - paid)
                 return (
                   <div key={r.id} style={{ padding: '10px 12px', background: '#FFFBEB', borderRadius: 10, borderLeft: '3px solid #F59E0B' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>

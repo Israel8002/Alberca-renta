@@ -72,7 +72,7 @@ Por favor envíanos tu comprobante por aquí una vez realizado el pago para conf
   return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`
 }
 
-// 3. Admin notifica pago pendiente al cliente
+// 3. Admin notifica estado detallado de pago (Apartado, Abono, Total y Pendiente)
 export function generateAdminPaymentReminderLink(params: {
   clientName: string
   clientPhone: string
@@ -84,30 +84,34 @@ export function generateAdminPaymentReminderLink(params: {
   depositAmount: number
   paymentInfo: string
 }): string {
-  const paid = params.depositAmount + params.abonoAmount
-  const pending = params.totalAmount - paid
+  const paid = (params.depositAmount || 0) + (params.abonoAmount || 0)
+  const pending = Math.max(0, (params.totalAmount || 0) - paid)
 
   const statusLabel =
-    params.status === 'apartado'
-      ? 'APARTADO ⏳'
-      : params.status === 'abono'
-      ? 'ABONO PARCIAL 🔵'
-      : 'PENDIENTE DE LIQUIDACIÓN 🟡'
+    pending === 0
+      ? 'PAGADO Y CONFIRMADO 🟢'
+      : params.abonoAmount > 0
+      ? 'ABONO REGISTRADO 🔵'
+      : 'APARTADO PENDIENTE DE LIQUIDAR 🟡'
 
   const message = `Hola *${params.clientName}* 👋
-Te recordamos tu reservación en *Alberca Santo Niño*:
+Te compartimos el desglose detallado de pago de tu reservación en *Alberca Santo Niño*:
 
 📅 *Fecha:* ${formatDate(params.date)}
 ⏰ *Horario:* ${getTimeSlotLabel(params.timeSlot)}
 💳 *Estatus:* ${statusLabel}
-💰 *Total:* ${formatMXN(params.totalAmount)}
-   ✅ Pagado: ${formatMXN(paid)}
-   ⏳ Pendiente: ${formatMXN(pending)}
 
-Por favor realiza tu pago:
+💰 *DESGLOSE DE MONTO:*
+   • Total del evento: ${formatMXN(params.totalAmount)}
+   • Apartado / Anticipo: ${formatMXN(params.depositAmount)}
+   • Abonos adicionales: ${formatMXN(params.abonoAmount)}
+   ✅ Total abonado/pagado: ${formatMXN(paid)}
+   ⏳ *PENDIENTE DE PAGO:* ${formatMXN(pending)}
+
+${pending > 0 ? `🏦 *DATOS DE PAGO:*
 ${params.paymentInfo}
 
-¡Gracias! 🏊‍♂️`
+Por favor envíanos tu comprobante al realizar tu pago para actualizar tu saldo. ¡Gracias! 🏊‍♂️` : '¡Tu reservación se encuentra liquidada al 100%! 🎉'}`
 
   const phone = cleanPhone(params.clientPhone)
   return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`
@@ -120,12 +124,12 @@ export function generatePaymentConfirmedLink(params: {
   date: string
 }): string {
   const message = `¡Hola *${params.clientName}*! ✅
-Tu pago ha sido confirmado y validado.
+Tu pago ha sido confirmado y validado por el administrador.
 
 📅 *Reservación:* ${formatDate(params.date)}
-💰 *Estatus:* ¡PAGADO Y CONFIRMADO! 🎉
+💰 *Estatus:* ¡PAGADO Y CONFIRMADO AL 100%! 🎉
 
-¡Tu fecha ha quedado oficialmente apartada! Te esperamos en *Alberca Santo Niño*. 🏊‍♂️`
+¡Tu fecha ha quedado oficialmente reservada! Te esperamos en *Alberca Santo Niño*. 🏊‍♂️`
 
   const phone = cleanPhone(params.clientPhone)
   return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`
