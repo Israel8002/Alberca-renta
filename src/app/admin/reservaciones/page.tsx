@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Plus, Search, Loader2, X, MessageCircle, Check } from 'lucide-react'
+import { Plus, Search, Loader2, X, MessageCircle, Check, CreditCard, AlertTriangle, UserCheck } from 'lucide-react'
 import { createReservation, updateReservationPayment, deleteReservation } from '@/services/reservations'
-import { generateAdminPaymentReminderLink } from '@/lib/whatsapp'
+import { generateSendPaymentInfoLink, generateDateOccupiedNotificationLink, generatePaymentConfirmedLink } from '@/lib/whatsapp'
 import toast from 'react-hot-toast'
 
 function formatMXN(n: number) {
@@ -32,7 +32,7 @@ export default function ReservacionesPage() {
   async function loadData() {
     setLoading(true)
     const [{ data: res }, { data: config }] = await Promise.all([
-      supabase.from('reservations').select('*').order('date', { ascending: false }),
+      supabase.from('reservations').select('*').order('created_at', { ascending: true }),
       supabase.from('site_config').select('payment_info').eq('id', 'main').single(),
     ])
     setReservations(res || [])
@@ -40,7 +40,6 @@ export default function ReservacionesPage() {
     setLoading(false)
   }
 
-  // Auto-detect time slot from date
   function handleDateChange(date: string) {
     const d = new Date(date + 'T12:00:00')
     const day = d.getDay()
@@ -59,8 +58,9 @@ export default function ReservacionesPage() {
         time_slot: form.time_slot as any,
         total_amount: parseFloat(form.total_amount),
         deposit_amount: parseFloat(form.deposit_amount || '0'),
+        validated_by_admin: true,
       })
-      toast.success('Reservación creada ✅')
+      toast.success('Reservación creada y validada ✅')
       setShowForm(false)
       setForm(EMPTY_FORM)
       loadData()
@@ -70,10 +70,10 @@ export default function ReservacionesPage() {
     setSaving(false)
   }
 
-  async function handleUpdateStatus(id: string, status: string, currentAbonoAmount?: number) {
+  async function handleValidate(id: string) {
     try {
-      await updateReservationPayment(id, { status: status as any })
-      toast.success('Estado actualizado')
+      await updateReservationPayment(id, { validated_by_admin: true, status: 'pagado' })
+      toast.success('Reservación validada y confirmada ✅')
       loadData()
     } catch { toast.error('Error') }
   }
@@ -89,27 +89,27 @@ export default function ReservacionesPage() {
 
   const statusFilters = [
     { key: 'all', label: 'Todas' },
-    { key: 'apartado', label: '🟡 Apartado' },
-    { key: 'abono', label: '🔵 Abono' },
-    { key: 'pagado', label: '✅ Pagado' },
-    { key: 'cancelado', label: '❌ Cancelado' },
+    { key: 'pending', label: '⏳ Pendientes de Validación' },
+    { key: 'validated', label: '✅ Validadas / Pagadas' },
   ]
 
-  const STATUS_COLORS: Record<string, string> = { apartado: '#F59E0B', abono: '#3B82F6', pagado: '#059669', cancelado: '#9CA3AF' }
-
   const filtered = reservations
-    .filter(r => filterStatus === 'all' || r.status === filterStatus)
+    .filter(r => {
+      if (filterStatus === 'pending') return !r.validated_by_admin && r.status !== 'pagado'
+      if (filterStatus === 'validated') return r.validated_by_admin || r.status === 'pagado'
+      return true
+    })
     .filter(r => r.user_name?.toLowerCase().includes(search.toLowerCase()) || r.user_whatsapp?.includes(search) || r.date?.includes(search))
 
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
         <div>
-          <h1 style={{ fontSize: '1.5rem', fontFamily: "'Playfair Display', serif", marginBottom: 4 }}>Reservaciones</h1>
-          <p style={{ color: 'var(--color-text-muted)', fontSize: '0.875rem' }}>{reservations.length} total</p>
+          <h1 style={{ fontSize: '1.5rem', fontFamily: "'Playfair Display', serif", marginBottom: 4 }}>Solicitudes y Reservaciones</h1>
+          <p style={{ color: 'var(--color-text-muted)', fontSize: '0.875rem' }}>{reservations.length} registro(s) por orden de llegada</p>
         </div>
         <button onClick={() => setShowForm(true)} className="btn-primary" style={{ padding: '10px 18px', fontSize: '0.875rem' }}>
-          <Plus size={16} /> Nueva Reservación
+          <Plus size={16} /> Crear Reservación Directa
         </button>
       </div>
 
@@ -117,7 +117,7 @@ export default function ReservacionesPage() {
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 16, alignItems: 'center' }}>
         <div style={{ position: 'relative', flex: '1 1 240px' }}>
           <Search size={15} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)' }} />
-          <input className="input-field" style={{ paddingLeft: 36, padding: '10px 12px 10px 36px' }} placeholder="Buscar nombre, WhatsApp o fecha…" value={search} onChange={e => setSearch(e.target.value)} />
+          <input className="input-field" style={{ paddingLeft: 36, padding: '10px 12px 10px 36px' }} placeholder="Buscar cliente, WhatsApp o fecha…" value={search} onChange={e => setSearch(e.target.value)} />
         </div>
         <div style={{ display: 'flex', gap: 6 }}>
           {statusFilters.map(f => (
@@ -133,51 +133,78 @@ export default function ReservacionesPage() {
       ) : (
         <div style={{ background: 'white', borderRadius: 16, overflow: 'hidden', border: '1px solid rgba(0,95,142,0.08)' }}>
           {/* Table header */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 1fr 1fr auto', gap: 0, background: '#F8FAFC', padding: '10px 16px', borderBottom: '1px solid rgba(0,95,142,0.08)', fontSize: '0.72rem', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            <span>Cliente</span>
+          <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 1.2fr auto', gap: 0, background: '#F8FAFC', padding: '12px 16px', borderBottom: '1px solid rgba(0,95,142,0.08)', fontSize: '0.72rem', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            <span>Cliente / Solicitante</span>
             <span>Fecha</span>
-            <span>Total</span>
-            <span>Pagado</span>
-            <span>Estado</span>
-            <span>Acciones</span>
+            <span>Monto</span>
+            <span>Estado de Validación</span>
+            <span style={{ textAlign: 'right' }}>Acciones rápidas por WA</span>
           </div>
           {filtered.length === 0 ? (
-            <div style={{ padding: '32px', textAlign: 'center', color: 'var(--color-text-muted)' }}>No se encontraron reservaciones</div>
+            <div style={{ padding: '32px', textAlign: 'center', color: 'var(--color-text-muted)' }}>No se encontraron registros</div>
           ) : (
-            filtered.map(r => {
-              const paid = (r.deposit_amount || 0) + (r.abono_amount || 0)
+            filtered.map((r, i) => {
+              const isValidated = r.validated_by_admin || r.status === 'pagado'
+              const dateStr = new Date(r.date + 'T12:00:00').toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })
+              const createdTime = r.created_at ? new Date(r.created_at).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }) : ''
+
               return (
-                <div key={r.id} style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 1fr 1fr auto', gap: 0, padding: '12px 16px', borderBottom: '1px solid rgba(0,95,142,0.05)', alignItems: 'center', transition: 'background 0.15s' }}>
+                <div key={r.id} style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 1.2fr auto', gap: 0, padding: '14px 16px', borderBottom: '1px solid rgba(0,95,142,0.05)', alignItems: 'center', background: isValidated ? '#F0FDF4' : 'white', transition: 'background 0.15s' }}>
                   <div>
-                    <p style={{ fontWeight: 600, fontSize: '0.875rem' }}>{r.user_name}</p>
-                    <p style={{ fontSize: '0.72rem', color: 'var(--color-text-muted)' }}>📱 {r.user_whatsapp}</p>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <p style={{ fontWeight: 700, fontSize: '0.875rem' }}>{r.user_name}</p>
+                      <span style={{ fontSize: '0.65rem', padding: '2px 6px', borderRadius: 999, background: '#E0F7FF', color: 'var(--color-primary)', fontWeight: 700 }}>
+                        #{i + 1}
+                      </span>
+                    </div>
+                    <p style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>📱 {r.user_whatsapp} {createdTime && `· 🕒 ${createdTime}`}</p>
                   </div>
                   <div>
-                    <p style={{ fontSize: '0.8rem', fontWeight: 600 }}>
-                      {new Date(r.date + 'T12:00:00').toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })}
-                    </p>
-                    <p style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)' }}>
-                      {r.time_slot === 'fin_de_semana' ? 'S-D' : 'L-V'}
-                    </p>
+                    <p style={{ fontSize: '0.85rem', fontWeight: 600 }}>{dateStr}</p>
+                    <p style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)' }}>{r.time_slot === 'fin_de_semana' ? 'Fin de semana' : 'Entre semana'}</p>
                   </div>
                   <span style={{ fontSize: '0.875rem', fontFamily: 'monospace', fontWeight: 700 }}>{formatMXN(r.total_amount || 0)}</span>
-                  <span style={{ fontSize: '0.875rem', fontFamily: 'monospace', color: '#059669', fontWeight: 700 }}>{formatMXN(paid)}</span>
-                  <span style={{ fontSize: '0.72rem', fontWeight: 700, padding: '3px 8px', borderRadius: 999, background: `${STATUS_COLORS[r.status] || '#9CA3AF'}20`, color: STATUS_COLORS[r.status] || '#9CA3AF', width: 'fit-content' }}>
-                    {r.status}
-                  </span>
-                  <div style={{ display: 'flex', gap: 4 }}>
-                    {r.status !== 'pagado' && r.status !== 'cancelado' && (
-                      <>
-                        <a href={generateAdminPaymentReminderLink({ clientName: r.user_name, clientPhone: r.user_whatsapp, date: r.date, timeSlot: r.time_slot, status: r.status, totalAmount: r.total_amount || 0, abonoAmount: r.abono_amount || 0, depositAmount: r.deposit_amount || 0, paymentInfo })} target="_blank" style={{ padding: '5px', background: '#F0FDF4', border: 'none', borderRadius: 6, cursor: 'pointer', display: 'flex' }}>
-                          <MessageCircle size={14} color="#25D366" />
-                        </a>
-                        <button onClick={() => handleUpdateStatus(r.id, 'pagado')} style={{ padding: '5px', background: '#F0FDF4', border: 'none', borderRadius: 6, cursor: 'pointer', display: 'flex' }}>
-                          <Check size={14} color="#059669" />
-                        </button>
-                      </>
+                  <div>
+                    {isValidated ? (
+                      <span className="badge badge-pagado">✅ Confirmado y Validado</span>
+                    ) : (
+                      <span className="badge badge-apartado">⏳ Pendiente de Validación</span>
                     )}
-                    <button onClick={() => handleDelete(r.id)} style={{ padding: '5px', background: '#FFF1F2', border: 'none', borderRadius: 6, cursor: 'pointer', display: 'flex' }}>
-                      <X size={14} color="#EF4444" />
+                  </div>
+                  <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                    {/* Action 1: Enviar datos de pago */}
+                    <a
+                      href={generateSendPaymentInfoLink({ clientName: r.user_name, clientPhone: r.user_whatsapp, date: r.date, paymentInfo })}
+                      target="_blank"
+                      title="Enviar Datos de Pago por WhatsApp"
+                      style={{ padding: '6px 10px', background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 8, color: '#065F46', fontSize: '0.75rem', fontWeight: 600, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4 }}
+                    >
+                      <CreditCard size={13} color="#25D366" /> Datos Pago
+                    </a>
+
+                    {/* Action 2: Validar Pago */}
+                    {!isValidated && (
+                      <button
+                        onClick={() => handleValidate(r.id)}
+                        title="Validar pago y quedarse con la fecha"
+                        style={{ padding: '6px 10px', background: '#059669', border: 'none', borderRadius: 8, color: 'white', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
+                      >
+                        <UserCheck size={13} /> Validar
+                      </button>
+                    )}
+
+                    {/* Action 3: Notificar fecha ocupada */}
+                    <a
+                      href={generateDateOccupiedNotificationLink({ clientName: r.user_name, clientPhone: r.user_whatsapp, date: r.date })}
+                      target="_blank"
+                      title="Notificar por WA que la fecha ya fue ocupada"
+                      style={{ padding: '6px 10px', background: '#FFF1F2', border: '1px solid #FECDD3', borderRadius: 8, color: '#991B1B', fontSize: '0.75rem', fontWeight: 600, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4 }}
+                    >
+                      <AlertTriangle size={13} color="#DC2626" /> Ocupada
+                    </a>
+
+                    <button onClick={() => handleDelete(r.id)} style={{ padding: '6px 8px', background: '#F3F4F6', border: 'none', borderRadius: 8, cursor: 'pointer', display: 'flex' }}>
+                      <X size={13} color="#6B7280" />
                     </button>
                   </div>
                 </div>
@@ -192,7 +219,7 @@ export default function ReservacionesPage() {
         <div style={{ position: 'fixed', inset: 0, zIndex: 400, background: 'rgba(13,33,55,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, backdropFilter: 'blur(4px)' }}>
           <div className="animate-fade-in" style={{ background: 'white', borderRadius: 20, padding: 28, width: '100%', maxWidth: 480 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20 }}>
-              <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.25rem' }}>Nueva Reservación</h3>
+              <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.25rem' }}>Nueva Reservación Directa</h3>
               <button onClick={() => setShowForm(false)} style={{ background: '#F3F4F6', border: 'none', borderRadius: '50%', width: 32, height: 32, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={16} /></button>
             </div>
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -229,7 +256,7 @@ export default function ReservacionesPage() {
                 </div>
               </div>
               <button type="submit" className="btn-primary" disabled={saving} style={{ padding: '13px' }}>
-                {saving ? <><Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> Guardando…</> : '✅ Crear Reservación'}
+                {saving ? <><Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> Guardando…</> : '✅ Crear Reservación Validada'}
               </button>
             </form>
           </div>

@@ -1,11 +1,7 @@
 import { TimeSlot, ReservationStatus } from '@/types'
 
-const ADMIN_NUMBERS = process.env.NEXT_PUBLIC_ADMIN_WHATSAPP?.split(',') || []
-
 function cleanPhone(phone: string): string {
-  // Remove spaces, dashes, parentheses; ensure it starts with country code
   const cleaned = phone.replace(/[\s\-\(\)\+]/g, '')
-  // If it starts with 52 (Mexico) already, keep it; otherwise add 52
   if (cleaned.startsWith('52') && cleaned.length === 12) return cleaned
   if (cleaned.length === 10) return `52${cleaned}`
   return cleaned
@@ -34,9 +30,7 @@ function formatMXN(amount: number): string {
   }).format(amount)
 }
 
-// =============================================
 // 1. Cliente quiere apartar una fecha
-// =============================================
 export function generateClientApartadoLink(params: {
   clientName: string
   clientPhone: string
@@ -44,24 +38,41 @@ export function generateClientApartadoLink(params: {
   date: string
   timeSlot: TimeSlot
   totalAmount: number
-  paymentInfo: string
 }): string {
-  const message = `Hola! 👋 Soy *${params.clientName}*, me gustaría apartar la alberca.
+  const message = `Hola! 👋 Soy *${params.clientName}*, me gustaría apartar la alberca Santo Niño.
 
 📅 *Fecha:* ${formatDate(params.date)}
 ⏰ *Horario:* ${getTimeSlotLabel(params.timeSlot)}
 💰 *Costo total:* ${formatMXN(params.totalAmount)}
 
-He revisado la información de pago.
-¿Pueden confirmar disponibilidad?`
+¿Me pueden enviar los datos de pago para confirmar mi apartado?`
 
   const phone = cleanPhone(params.adminPhone)
   return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`
 }
 
-// =============================================
-// 2. Admin notifica pago pendiente al cliente
-// =============================================
+// 2. Admin envía información de pago (datos bancarios) al cliente
+export function generateSendPaymentInfoLink(params: {
+  clientName: string
+  clientPhone: string
+  date: string
+  paymentInfo: string
+}): string {
+  const message = `Hola *${params.clientName}*! 👋
+Te compartimos la información de pago para apartar tu fecha en *Alberca Santo Niño*:
+
+📅 *Fecha solicitada:* ${formatDate(params.date)}
+
+🏦 *Instrucciones de Pago:*
+${params.paymentInfo}
+
+Por favor envíanos tu comprobante por aquí una vez realizado el pago para confirmar tu fecha. ¡Gracias! 🏊‍♂️`
+
+  const phone = cleanPhone(params.clientPhone)
+  return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`
+}
+
+// 3. Admin notifica pago pendiente al cliente
 export function generateAdminPaymentReminderLink(params: {
   clientName: string
   clientPhone: string
@@ -102,56 +113,41 @@ ${params.paymentInfo}
   return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`
 }
 
-// =============================================
-// 3. Admin confirma pago completado
-// =============================================
+// 4. Admin confirma pago completado
 export function generatePaymentConfirmedLink(params: {
   clientName: string
   clientPhone: string
   date: string
 }): string {
   const message = `¡Hola *${params.clientName}*! ✅
-Tu pago ha sido confirmado.
+Tu pago ha sido confirmado y validado.
 
 📅 *Reservación:* ${formatDate(params.date)}
-💰 *Estatus:* ¡PAGADO AL 100%! 🎉
+💰 *Estatus:* ¡PAGADO Y CONFIRMADO! 🎉
 
-¡Te esperamos en *Alberca Santo Niño*! 🏊‍♂️`
+¡Tu fecha ha quedado oficialmente apartada! Te esperamos en *Alberca Santo Niño*. 🏊‍♂️`
 
   const phone = cleanPhone(params.clientPhone)
   return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`
 }
 
-// =============================================
-// 4. Notificación a admins cuando cliente solicita apartado
-// =============================================
-export function generateAdminNotificationLinks(params: {
+// 5. Admin notifica a otros clientes interesados que la fecha ya fue apartada
+export function generateDateOccupiedNotificationLink(params: {
   clientName: string
   clientPhone: string
   date: string
-  timeSlot: TimeSlot
-  totalAmount: number
-  adminPhones: string[]
-}): string[] {
-  const message = `🔔 *Nueva solicitud de apartado*
+}): string {
+  const message = `Hola *${params.clientName}* 👋
+Te informamos que la fecha *${formatDate(params.date)}* en *Alberca Santo Niño* ya fue apartada y confirmada por otro cliente. 🏊‍♂️
 
-👤 *Cliente:* ${params.clientName}
-📱 *WhatsApp:* ${params.clientPhone}
-📅 *Fecha solicitada:* ${formatDate(params.date)}
-⏰ *Horario:* ${getTimeSlotLabel(params.timeSlot)}
-💰 *Monto:* ${formatMXN(params.totalAmount)}
+¿Te gustaría consultar la disponibilidad para otra fecha en nuestro calendario?
+Visita nuestro sitio: https://alberca-renta.vercel.app/reservar`
 
-Revisa el sistema para confirmar.`
-
-  return params.adminPhones.map((phone) => {
-    const cleaned = cleanPhone(phone)
-    return `https://wa.me/${cleaned}?text=${encodeURIComponent(message)}`
-  })
+  const phone = cleanPhone(params.clientPhone)
+  return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`
 }
 
-// =============================================
-// 5. Info de fecha para el cliente (al ver detalle)
-// =============================================
+// 6. Info de fecha para el cliente
 export function generateDateInfoLink(params: {
   adminPhone: string
   date: string

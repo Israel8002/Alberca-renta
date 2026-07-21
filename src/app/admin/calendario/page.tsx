@@ -4,18 +4,23 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, startOfWeek, endOfWeek, isSameMonth, isToday } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { ChevronLeft, ChevronRight, Plus, X, MessageCircle, Check, Loader2 } from 'lucide-react'
-import { generateAdminPaymentReminderLink, generatePaymentConfirmedLink } from '@/lib/whatsapp'
+import { ChevronLeft, ChevronRight, Plus, X, MessageCircle, Check, Loader2, CreditCard, AlertTriangle, UserCheck } from 'lucide-react'
+import {
+  generateAdminPaymentReminderLink,
+  generatePaymentConfirmedLink,
+  generateSendPaymentInfoLink,
+  generateDateOccupiedNotificationLink,
+} from '@/lib/whatsapp'
 import { updateReservationPayment, deleteReservation } from '@/services/reservations'
 import toast from 'react-hot-toast'
 
 const STATUS_CONFIG: Record<string, { bg: string; dot: string; label: string; badge: string }> = {
-  apartado:    { bg: '#FEF3C7', dot: '#F59E0B', label: '🟡 Apartado', badge: 'badge-apartado' },
-  abono:       { bg: '#DBEAFE', dot: '#3B82F6', label: '🔵 Abono',    badge: 'badge-abono' },
-  pagado:      { bg: '#D1FAE5', dot: '#059669', label: '✅ Pagado',   badge: 'badge-pagado' },
-  cancelado:   { bg: '#F3F4F6', dot: '#9CA3AF', label: '❌ Cancelado', badge: 'badge-cancelado' },
-  promotion:   { bg: '#EDE9FE', dot: '#8B5CF6', label: '🎉 Promoción', badge: 'badge-promo' },
-  maintenance: { bg: '#F3F4F6', dot: '#6B7280', label: '⚙️ Mantenimiento', badge: 'badge-maintenance' },
+  apartado:    { bg: '#FEF3C7', dot: '#F59E0B', label: '🟡 Solicitud / Apartado', badge: 'badge-apartado' },
+  abono:       { bg: '#DBEAFE', dot: '#3B82F6', label: '🔵 Abono Validado',       badge: 'badge-abono' },
+  pagado:      { bg: '#D1FAE5', dot: '#059669', label: '✅ Pagado Confirmado',    badge: 'badge-pagado' },
+  cancelado:   { bg: '#F3F4F6', dot: '#9CA3AF', label: '❌ Cancelado / Ocupado',   badge: 'badge-cancelado' },
+  promotion:   { bg: '#EDE9FE', dot: '#8B5CF6', label: '🎉 Promoción',            badge: 'badge-promo' },
+  maintenance: { bg: '#F3F4F6', dot: '#6B7280', label: '⚙️ Mantenimiento',        badge: 'badge-maintenance' },
 }
 
 const DAYS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
@@ -34,7 +39,6 @@ export default function AdminCalendarPage() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [selectedItems, setSelectedItems] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
-  const [showNewReservation, setShowNewReservation] = useState(false)
   const [paymentInfo, setPaymentInfo] = useState('')
   const supabase = createClient()
 
@@ -54,7 +58,7 @@ export default function AdminCalendarPage() {
     const end = format(endOfMonth(currentMonth), 'yyyy-MM-dd')
 
     const [{ data: reservations }, { data: events }] = await Promise.all([
-      supabase.from('reservations').select('*').gte('date', start).lte('date', end).neq('status', 'cancelado').order('date'),
+      supabase.from('reservations').select('*').gte('date', start).lte('date', end).neq('status', 'cancelado').order('created_at', { ascending: true }),
       supabase.from('events').select('*').lte('date', end).gte('end_date', start).eq('is_active', true),
     ])
 
@@ -89,7 +93,7 @@ export default function AdminCalendarPage() {
   async function handleValidatePayment(reservationId: string) {
     try {
       await updateReservationPayment(reservationId, { validated_by_admin: true, status: 'pagado' })
-      toast.success('Pago validado ✅')
+      toast.success('Pago validado y reservación confirmada ✅')
       loadMonthData()
       setSelectedDate(null)
     } catch { toast.error('Error al validar') }
@@ -105,22 +109,30 @@ export default function AdminCalendarPage() {
     } catch { toast.error('Error al eliminar') }
   }
 
-  function buildPaymentReminderLink(r: any) {
-    return generateAdminPaymentReminderLink({
+  // Links for Admin Actions
+  function buildSendPaymentInfoLink(r: any) {
+    return generateSendPaymentInfoLink({
       clientName: r.user_name,
       clientPhone: r.user_whatsapp,
       date: r.date,
-      timeSlot: r.time_slot,
-      status: r.status,
-      totalAmount: r.total_amount || 0,
-      abonoAmount: r.abono_amount || 0,
-      depositAmount: r.deposit_amount || 0,
       paymentInfo,
     })
   }
 
+  function buildDateOccupiedLink(r: any) {
+    return generateDateOccupiedNotificationLink({
+      clientName: r.user_name,
+      clientPhone: r.user_whatsapp,
+      date: r.date,
+    })
+  }
+
   function buildConfirmedLink(r: any) {
-    return generatePaymentConfirmedLink({ clientName: r.user_name, clientPhone: r.user_whatsapp, date: r.date })
+    return generatePaymentConfirmedLink({
+      clientName: r.user_name,
+      clientPhone: r.user_whatsapp,
+      date: r.date,
+    })
   }
 
   // Build calendar weeks
@@ -138,12 +150,15 @@ export default function AdminCalendarPage() {
     weeks.push(week)
   }
 
+  // Check if date has a validated reservation
+  const isDateValidated = selectedItems.some(i => i._type === 'reservation' && (i.validated_by_admin || i.status === 'pagado'))
+
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
         <div>
-          <h1 style={{ fontSize: '1.5rem', fontFamily: "'Playfair Display', serif" }}>Calendario</h1>
-          <p style={{ color: 'var(--color-text-muted)', fontSize: '0.875rem' }}>Gestión de reservaciones y eventos</p>
+          <h1 style={{ fontSize: '1.5rem', fontFamily: "'Playfair Display', serif" }}>Calendario de Administración</h1>
+          <p style={{ color: 'var(--color-text-muted)', fontSize: '0.875rem' }}>Gestión de solicitudes, anticipos e interés de usuarios</p>
         </div>
         <a href="/admin/reservaciones" className="btn-primary" style={{ gap: 6, padding: '10px 18px', fontSize: '0.875rem' }}>
           <Plus size={16} /> Nueva Reservación
@@ -194,14 +209,15 @@ export default function AdminCalendarPage() {
                 const today = isToday(day)
                 const isSelected = selectedDate === key
 
-                const mainStatus = items.find(i => i._type === 'reservation')?.status || (items.find(i => i._type === 'event')?.type)
+                const resItems = items.filter(i => i._type === 'reservation')
+                const isValidated = resItems.some(r => r.validated_by_admin || r.status === 'pagado')
 
                 return (
                   <div
                     key={di}
                     onClick={() => inMonth && handleDayClick(key)}
                     style={{
-                      minHeight: 80,
+                      minHeight: 85,
                       padding: '6px',
                       background: isSelected ? 'rgba(0,180,216,0.12)' : (today ? 'rgba(0,180,216,0.05)' : 'white'),
                       opacity: inMonth ? 1 : 0.3,
@@ -210,33 +226,42 @@ export default function AdminCalendarPage() {
                       transition: 'background 0.15s',
                     }}
                   >
-                    <span style={{
-                      display: 'inline-flex',
-                      width: 26,
-                      height: 26,
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      borderRadius: '50%',
-                      fontSize: '0.8rem',
-                      fontWeight: today ? 700 : 400,
-                      background: today ? 'var(--color-primary)' : 'transparent',
-                      color: today ? 'white' : 'var(--color-text)',
-                      marginBottom: 4,
-                    }}>
-                      {format(day, 'd')}
-                    </span>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                      <span style={{
+                        display: 'inline-flex',
+                        width: 24,
+                        height: 24,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        borderRadius: '50%',
+                        fontSize: '0.8rem',
+                        fontWeight: today ? 700 : 400,
+                        background: today ? 'var(--color-primary)' : 'transparent',
+                        color: today ? 'white' : 'var(--color-text)',
+                      }}>
+                        {format(day, 'd')}
+                      </span>
+
+                      {/* Interest badge */}
+                      {resItems.length > 0 && !isValidated && (
+                        <span style={{ fontSize: '0.6rem', fontWeight: 700, background: '#FEF3C7', color: '#92400E', padding: '1px 5px', borderRadius: 999 }}>
+                          👀 {resItems.length}
+                        </span>
+                      )}
+                    </div>
+
                     {items.map((item, idx) => (
                       <div
                         key={idx}
                         style={{
                           fontSize: '0.65rem',
-                          padding: '2px 4px',
+                          padding: '2px 5px',
                           borderRadius: 4,
                           background: item._type === 'reservation'
-                            ? (STATUS_CONFIG[item.status]?.bg || '#F3F4F6')
-                            : (STATUS_CONFIG[item.type]?.bg || '#EDE9FE'),
+                            ? (item.validated_by_admin ? '#D1FAE5' : '#FEF3C7')
+                            : '#EDE9FE',
                           color: item._type === 'reservation'
-                            ? (STATUS_CONFIG[item.status]?.dot || '#6B7280')
+                            ? (item.validated_by_admin ? '#065F46' : '#92400E')
                             : '#5B21B6',
                           fontWeight: 600,
                           marginBottom: 2,
@@ -245,7 +270,9 @@ export default function AdminCalendarPage() {
                           whiteSpace: 'nowrap',
                         }}
                       >
-                        {item._type === 'reservation' ? item.user_name : item.title}
+                        {item._type === 'reservation'
+                          ? `${idx + 1}. ${item.user_name} ${item.validated_by_admin ? '✅' : '⏳'}`
+                          : item.title}
                       </div>
                     ))}
                   </div>
@@ -271,7 +298,7 @@ export default function AdminCalendarPage() {
             onClick={e => e.stopPropagation()}
             className="animate-slide-right"
             style={{
-              width: 420,
+              width: 440,
               height: '100vh',
               background: 'white',
               overflowY: 'auto',
@@ -280,9 +307,14 @@ export default function AdminCalendarPage() {
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-              <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.2rem' }}>
-                {new Date(selectedDate + 'T12:00:00').toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' })}
-              </h3>
+              <div>
+                <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.2rem' }}>
+                  {new Date(selectedDate + 'T12:00:00').toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' })}
+                </h3>
+                <p style={{ fontSize: '0.78rem', color: 'var(--color-text-muted)' }}>
+                  {selectedItems.filter(i => i._type === 'reservation').length} usuario(s) interesado(s) en esta fecha (orden cronológico)
+                </p>
+              </div>
               <button onClick={() => setSelectedDate(null)} style={{ background: '#F3F4F6', border: 'none', borderRadius: '50%', width: 32, height: 32, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <X size={16} />
               </button>
@@ -291,57 +323,103 @@ export default function AdminCalendarPage() {
             {selectedItems.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--color-text-muted)' }}>
                 <p style={{ fontSize: '2rem', marginBottom: 8 }}>🟢</p>
-                <p style={{ fontWeight: 600 }}>Fecha disponible</p>
+                <p style={{ fontWeight: 600 }}>Fecha disponible sin solicitudes</p>
                 <a href="/admin/reservaciones" className="btn-primary" style={{ display: 'inline-flex', marginTop: 16, fontSize: '0.875rem' }}>
-                  <Plus size={14} /> Crear Reservación
+                  <Plus size={14} /> Registrar Reservación Directa
                 </a>
               </div>
             ) : (
-              selectedItems.map((item, idx) => (
-                <div key={idx} style={{ border: '1px solid rgba(0,95,142,0.1)', borderRadius: 14, padding: 16, marginBottom: 12 }}>
-                  {item._type === 'reservation' ? (
-                    <>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
-                        <span className={`badge ${STATUS_CONFIG[item.status]?.badge}`}>{STATUS_CONFIG[item.status]?.label}</span>
-                        {item.proof_urls?.length > 0 && <span className="badge" style={{ background: '#D1FAE5', color: '#065F46' }}>📎 {item.proof_urls.length} comprobante(s)</span>}
-                      </div>
-                      <p style={{ fontWeight: 700, fontSize: '1rem', marginBottom: 4 }}>{item.user_name}</p>
-                      <p style={{ color: 'var(--color-text-muted)', fontSize: '0.875rem', marginBottom: 8 }}>📱 {item.user_whatsapp}</p>
-                      <p style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginBottom: 8 }}>⏰ {getTimeSlotLabel(item.time_slot)}</p>
-                      <div style={{ background: 'var(--color-bg)', borderRadius: 10, padding: 12, marginBottom: 12, fontFamily: 'monospace', fontSize: '0.875rem' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Total:</span><strong>{formatMXN(item.total_amount || 0)}</strong></div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Pagado:</span><strong style={{ color: '#059669' }}>{formatMXN((item.deposit_amount || 0) + (item.abono_amount || 0))}</strong></div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Pendiente:</span><strong style={{ color: '#EF4444' }}>{formatMXN((item.total_amount || 0) - (item.deposit_amount || 0) - (item.abono_amount || 0))}</strong></div>
-                      </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                        <a href={buildPaymentReminderLink(item)} target="_blank" className="btn-whatsapp" style={{ fontSize: '0.8rem', padding: '8px 14px' }}>
-                          <MessageCircle size={14} /> Recordar pago
-                        </a>
-                        {item.status !== 'pagado' && (
-                          <button onClick={() => handleValidatePayment(item.id)} className="btn-primary" style={{ fontSize: '0.8rem', padding: '8px 14px', background: 'linear-gradient(135deg, #059669, #10B981)' }}>
-                            <Check size={14} /> Marcar como pagado
-                          </button>
+              selectedItems.map((item, idx) => {
+                const isReservation = item._type === 'reservation'
+                const isValidated = item.validated_by_admin || item.status === 'pagado'
+
+                return (
+                  <div key={idx} style={{ border: isValidated ? '2px solid #10B981' : '1px solid rgba(0,95,142,0.15)', borderRadius: 14, padding: 16, marginBottom: 14, background: isValidated ? '#F0FDF4' : 'white' }}>
+                    {isReservation ? (
+                      <>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                          <span style={{ fontSize: '0.72rem', fontWeight: 800, background: '#E0F7FF', color: 'var(--color-primary)', padding: '2px 8px', borderRadius: 999 }}>
+                            # {idx + 1} {idx === 0 ? ' (Solicitó Primero)' : ' (Solicitud posterior)'}
+                          </span>
+                          <span className={`badge ${isValidated ? 'badge-pagado' : 'badge-apartado'}`}>
+                            {isValidated ? '✅ Validado y Confirmado' : '⏳ Pendiente de Validación'}
+                          </span>
+                        </div>
+
+                        <p style={{ fontWeight: 700, fontSize: '1rem', marginBottom: 2 }}>{item.user_name}</p>
+                        <p style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem', marginBottom: 4 }}>📱 WhatsApp: <strong>{item.user_whatsapp}</strong></p>
+                        <p style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginBottom: 8 }}>
+                          ⏰ Solicitó a las: {item.created_at ? new Date(item.created_at).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }) : 'Hora N/A'}
+                        </p>
+
+                        <div style={{ background: 'white', border: '1px solid rgba(0,95,142,0.08)', borderRadius: 10, padding: 10, marginBottom: 12, fontFamily: 'monospace', fontSize: '0.85rem' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Total:</span><strong>{formatMXN(item.total_amount || 0)}</strong></div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Anticipo sugerido:</span><strong style={{ color: '#D97706' }}>{formatMXN(item.deposit_amount || 0)}</strong></div>
+                        </div>
+
+                        {/* Proof files if uploaded */}
+                        {item.proof_urls?.length > 0 && (
+                          <div style={{ marginBottom: 12 }}>
+                            <p style={{ fontSize: '0.75rem', fontWeight: 600, color: '#065F46', marginBottom: 4 }}>Comprobantes del cliente:</p>
+                            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                              {item.proof_urls.map((url: string, i: number) => (
+                                <a key={i} href={url} target="_blank" style={{ padding: '3px 8px', background: '#D1FAE5', borderRadius: 6, fontSize: '0.72rem', color: '#065F46', fontWeight: 600, textDecoration: 'none' }}>
+                                  📎 Comprobante #{i + 1}
+                                </a>
+                              ))}
+                            </div>
+                          </div>
                         )}
-                        {item.status === 'pagado' && (
-                          <a href={buildConfirmedLink(item)} target="_blank" className="btn-whatsapp" style={{ fontSize: '0.8rem', padding: '8px 14px', background: 'linear-gradient(135deg, #059669, #10B981)' }}>
-                            <MessageCircle size={14} /> Confirmar pago al cliente
+
+                        {/* ADMIN ACTIONS */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                          {/* Send Banking Details */}
+                          <a
+                            href={buildSendPaymentInfoLink(item)}
+                            target="_blank"
+                            className="btn-whatsapp"
+                            style={{ fontSize: '0.8rem', padding: '9px 14px', justifyContent: 'center' }}
+                          >
+                            <CreditCard size={15} /> 🏦 Enviar Datos de Pago por WhatsApp
                           </a>
-                        )}
-                        <button onClick={() => handleDeleteReservation(item.id)} className="btn-danger" style={{ fontSize: '0.8rem', padding: '8px 14px' }}>
-                          Eliminar reservación
-                        </button>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <span className="badge badge-promo" style={{ marginBottom: 10 }}>🎉 {item.type}</span>
-                      <p style={{ fontWeight: 700 }}>{item.title}</p>
-                      {item.description && <p style={{ color: 'var(--color-text-muted)', fontSize: '0.875rem', marginTop: 4 }}>{item.description}</p>}
-                      {item.special_price && <p style={{ marginTop: 8, fontWeight: 700, color: 'var(--color-primary)' }}>Precio especial: {formatMXN(item.special_price)}</p>}
-                    </>
-                  )}
-                </div>
-              ))
+
+                          {/* Confirm / Validate Payment */}
+                          {!isValidated && (
+                            <button
+                              onClick={() => handleValidatePayment(item.id)}
+                              className="btn-primary"
+                              style={{ fontSize: '0.8rem', padding: '9px 14px', background: 'linear-gradient(135deg, #059669, #10B981)', justifyContent: 'center' }}
+                            >
+                              <UserCheck size={15} /> ✅ Confirmar Pago y Quedarse con la Fecha
+                            </button>
+                          )}
+
+                          {/* If Date is validated by another user, allow notifying this client */}
+                          {isDateValidated && !isValidated && (
+                            <a
+                              href={buildDateOccupiedLink(item)}
+                              target="_blank"
+                              style={{ fontSize: '0.78rem', padding: '9px 14px', background: '#FEF2F2', border: '1px solid #FCA5A5', color: '#991B1B', borderRadius: 999, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, textDecoration: 'none' }}
+                            >
+                              <AlertTriangle size={15} /> 📢 Notificar por WA que la fecha ya fue ocupada
+                            </a>
+                          )}
+
+                          <button onClick={() => handleDeleteReservation(item.id)} className="btn-danger" style={{ fontSize: '0.78rem', padding: '6px 12px', opacity: 0.8 }}>
+                            Eliminar solicitud
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <span className="badge badge-promo" style={{ marginBottom: 10 }}>🎉 {item.type}</span>
+                        <p style={{ fontWeight: 700 }}>{item.title}</p>
+                        {item.description && <p style={{ color: 'var(--color-text-muted)', fontSize: '0.875rem', marginTop: 4 }}>{item.description}</p>}
+                      </>
+                    )}
+                  </div>
+                )
+              })
             )}
           </div>
         </div>

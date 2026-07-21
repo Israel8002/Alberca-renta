@@ -2,18 +2,21 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
-import { ChevronLeft, ChevronRight, X, MessageCircle, Clock, DollarSign, Info, ShieldCheck, Lock, CheckCircle2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, X, MessageCircle, Clock, DollarSign, Lock, CheckCircle2, Eye } from 'lucide-react'
 import { format, startOfMonth, endOfMonth, isSameMonth, isToday, addMonths, subMonths, startOfWeek, endOfWeek } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { createClient } from '@/lib/supabase/client'
 import { SiteConfig } from '@/types'
 import { generateClientApartadoLink } from '@/lib/whatsapp'
+import { createReservation } from '@/services/reservations'
 import toast from 'react-hot-toast'
 
 type DayStatus = 'available' | 'apartado' | 'abono' | 'pagado' | 'maintenance' | 'promotion' | 'cancelado'
 
 interface DayData {
   status: DayStatus
+  validated?: boolean
+  interestCount: number
   reservationId?: string
   userName?: string
   eventTitle?: string
@@ -48,9 +51,10 @@ export default function PublicCalendar({ config, adminWhatsapp }: { config: Part
   const [dayData, setDayData] = useState<Record<string, DayData>>({})
   const [selectedDay, setSelectedDay] = useState<Date | null>(null)
   const [loading, setLoading] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
 
   // Auth & Profile state
-  const [userProfile, setUserProfile] = useState<{ name: string; whatsapp: string } | null>(null)
+  const [userProfile, setUserProfile] = useState<{ id: string; name: string; whatsapp: string } | null>(null)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [selectedAdminPhone, setSelectedAdminPhone] = useState('')
 
@@ -64,11 +68,12 @@ export default function PublicCalendar({ config, adminWhatsapp }: { config: Part
         setIsLoggedIn(true)
         const { data: profile } = await supabase
           .from('profiles')
-          .select('name, whatsapp')
+          .select('id, name, whatsapp')
           .eq('id', user.id)
           .maybeSingle()
 
         setUserProfile({
+          id: user.id,
           name: profile?.name || user.user_metadata?.name || user.email?.split('@')[0] || 'Cliente',
           whatsapp: profile?.whatsapp || user.user_metadata?.whatsapp || '',
         })
@@ -97,12 +102,13 @@ export default function PublicCalendar({ config, adminWhatsapp }: { config: Part
     const end = format(endOfMonth(month), 'yyyy-MM-dd')
 
     const [{ data: reservations }, { data: events }] = await Promise.all([
-      supabase.from('reservations').select('date, status').gte('date', start).lte('date', end).neq('status', 'cancelado'),
+      supabase.from('reservations').select('date, status, validated_by_admin').gte('date', start).lte('date', end).neq('status', 'cancelado'),
       supabase.from('events').select('date, end_date, type, title, special_price').lte('date', end).gte('end_date', start).eq('is_active', true),
     ])
 
     const map: Record<string, DayData> = {}
 
+    // Process events
     events?.forEach(ev => {
       const d = new Date(ev.date + 'T12:00:00')
       const dEnd = new Date((ev.end_date || ev.date) + 'T12:00:00')
@@ -110,16 +116,25 @@ export default function PublicCalendar({ config, adminWhatsapp }: { config: Part
       while (cur <= dEnd) {
         const key = format(cur, 'yyyy-MM-dd')
         if (ev.type === 'maintenance') {
-          map[key] = { status: 'maintenance', eventTitle: ev.title, eventType: ev.type }
+          map[key] = { status: 'maintenance', eventTitle: ev.title, eventType: ev.type, interestCount: 0 }
         } else {
-          map[key] = { status: 'promotion', eventTitle: ev.title, eventType: ev.type, price: ev.special_price || undefined }
+          map[key] = { status: 'promotion', eventTitle: ev.title, eventType: ev.type, price: ev.special_price || undefined, interestCount: 0 }
         }
         cur.setDate(cur.getDate() + 1)
       }
     })
 
+    // Process reservations & count unvalidated interests
     reservations?.forEach(r => {
-      map[r.date] = { status: r.status as DayStatus }
+      const existing = map[r.date] || { status: 'available', interestCount: 0 }
+      if (r.validated_by_admin || r.status === 'pagado' || r.status === 'abono') {
+        map[r.date] = { ...existing, status: r.status as DayStatus, validated: true }
+      } else {
+        const newCount = (existing.interestCount || 0) + 1
+        if (!existing.validated && existing.status !== 'maintenance') {
+          map[r.date] = { ...existing, interestCount: newCount }
+        }
+      }
     })
 
     setDayData(map)
@@ -146,7 +161,7 @@ export default function PublicCalendar({ config, adminWhatsapp }: { config: Part
 
   function getDayInfo(d: Date): DayData {
     const key = format(d, 'yyyy-MM-dd')
-    return dayData[key] || { status: 'available' }
+    return dayData[key] || { status: 'available', interestCount: 0 }
   }
 
   function canSelect(d: Date): boolean {
@@ -155,35 +170,57 @@ export default function PublicCalendar({ config, adminWhatsapp }: { config: Part
     today.setHours(0, 0, 0, 0)
     if (d < today) return false
     if (!isSameMonth(d, currentMonth)) return false
-    return info.status === 'available' || info.status === 'promotion'
+    // Date is selectable if not validated/confirmed or maintenance
+    if (info.status === 'maintenance') return false
+    if (info.validated || info.status === 'pagado') return false
+    return true
   }
 
-  function handleApartar() {
+  async function handleApartar() {
     if (!selectedDay) return
     if (!isLoggedIn || !userProfile) {
       toast.error('Debes iniciar sesión para apartar')
       return
     }
 
-    const dayInfo = getDayInfo(selectedDay)
-    const price = dayInfo.price || getMXNPrice(config, selectedDay)
-    const adminPhoneToUse = selectedAdminPhone || adminPhones[0] || ''
+    setSubmitting(true)
+    try {
+      const dayInfo = getDayInfo(selectedDay)
+      const price = dayInfo.price || getMXNPrice(config, selectedDay)
+      const dateStr = format(selectedDay, 'yyyy-MM-dd')
+      const timeSlot = getTimeSlot(selectedDay)
 
-    if (!adminPhoneToUse) {
-      toast.error('No se ha configurado un número de administrador')
-      return
+      // 1. Create reservation record in Database marked as pending validation
+      await createReservation({
+        user_id: userProfile.id,
+        user_name: userProfile.name,
+        user_whatsapp: userProfile.whatsapp,
+        date: dateStr,
+        time_slot: timeSlot,
+        total_amount: price,
+        deposit_amount: config.deposit_amount || 0,
+      })
+
+      toast.success('¡Solicitud registrada! Se abrirá WhatsApp para contactar al administrador.')
+
+      // 2. Open WhatsApp pre-filled link to chosen Admin number
+      const adminPhoneToUse = selectedAdminPhone || adminPhones[0] || ''
+      const link = generateClientApartadoLink({
+        clientName: userProfile.name,
+        clientPhone: userProfile.whatsapp,
+        adminPhone: adminPhoneToUse,
+        date: dateStr,
+        timeSlot,
+        totalAmount: price,
+      })
+
+      window.open(link, '_blank')
+      setSelectedDay(null)
+      loadMonthData(currentMonth)
+    } catch (err: any) {
+      toast.error(err.message || 'Error al procesar solicitud')
     }
-
-    const link = generateClientApartadoLink({
-      clientName: userProfile.name,
-      clientPhone: userProfile.whatsapp,
-      adminPhone: adminPhoneToUse,
-      date: format(selectedDay, 'yyyy-MM-dd'),
-      timeSlot: getTimeSlot(selectedDay),
-      totalAmount: price,
-      paymentInfo: config.payment_info || '',
-    })
-    window.open(link, '_blank')
+    setSubmitting(false)
   }
 
   const selectedInfo = selectedDay ? getDayInfo(selectedDay) : null
@@ -191,13 +228,13 @@ export default function PublicCalendar({ config, adminWhatsapp }: { config: Part
   const dateFormatted = selectedDay ? format(selectedDay, "EEEE d 'de' MMMM, yyyy", { locale: es }) : ''
 
   // Preview message text
-  const previewMessage = selectedDay && userProfile ? `Hola! 👋 Soy *${userProfile.name}*, me gustaría apartar la alberca.
+  const previewMessage = selectedDay && userProfile ? `Hola! 👋 Soy *${userProfile.name}*, me gustaría apartar la alberca Santo Niño.
 
 📅 *Fecha:* ${dateFormatted}
 ⏰ *Horario:* ${getTimeSlotLabel(selectedDay)}
 💰 *Costo total:* ${formatMXN(selectedPrice)}
 
-He revisado la información. ¿Pueden confirmar disponibilidad?` : ''
+¿Me pueden enviar los datos de pago para confirmar mi apartado?` : ''
 
   return (
     <div style={{ maxWidth: 900, margin: '0 auto', padding: '0 16px' }}>
@@ -224,9 +261,8 @@ He revisado la información. ¿Pueden confirmar disponibilidad?` : ''
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 20, justifyContent: 'center' }}>
         {[
           { color: '#10B981', label: 'Disponible' },
-          { color: '#F59E0B', label: 'Apartado' },
-          { color: '#3B82F6', label: 'Con Abono' },
-          { color: '#059669', label: 'Pagado' },
+          { color: '#F59E0B', label: 'Con Solicitud / Interés' },
+          { color: '#059669', label: 'Apartado Confirmado' },
           { color: '#8B5CF6', label: 'Promoción' },
           { color: '#9CA3AF', label: 'No disponible' },
         ].map(item => (
@@ -266,12 +302,11 @@ He revisado la información. ¿Pueden confirmar disponibilidad?` : ''
 
                 let dotColor = 'transparent'
                 if (inMonth) {
-                  if (info.status === 'available') dotColor = '#10B981'
-                  else if (info.status === 'apartado') dotColor = '#F59E0B'
-                  else if (info.status === 'abono') dotColor = '#3B82F6'
-                  else if (info.status === 'pagado') dotColor = '#059669'
-                  else if (info.status === 'promotion') dotColor = '#8B5CF6'
+                  if (info.validated || info.status === 'pagado') dotColor = '#059669'
                   else if (info.status === 'maintenance') dotColor = '#9CA3AF'
+                  else if (info.status === 'promotion') dotColor = '#8B5CF6'
+                  else if (info.interestCount > 0) dotColor = '#F59E0B'
+                  else if (info.status === 'available') dotColor = '#10B981'
                 }
 
                 return (
@@ -279,50 +314,63 @@ He revisado la información. ¿Pueden confirmar disponibilidad?` : ''
                     key={di}
                     onClick={() => selectable && setSelectedDay(d)}
                     style={{
-                      minHeight: 72,
-                      padding: '8px 6px',
+                      minHeight: 74,
+                      padding: '8px 4px',
                       display: 'flex',
                       flexDirection: 'column',
                       alignItems: 'center',
                       cursor: selectable ? 'pointer' : 'default',
                       background: isSelected ? 'rgba(0,180,216,0.15)' : (today && inMonth ? 'rgba(0,180,216,0.06)' : 'white'),
-                      opacity: inMonth ? 1 : 0.3,
+                      opacity: inMonth ? (selectable ? 1 : 0.45) : 0.25,
                       transition: 'background 0.15s',
                       position: 'relative',
                     }}
                   >
-                    {/* Today ring */}
+                    {/* Day Number */}
                     <span style={{
-                      width: 32,
-                      height: 32,
+                      width: 30,
+                      height: 30,
                       borderRadius: '50%',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      fontSize: '0.9rem',
+                      fontSize: '0.85rem',
                       fontWeight: today ? 700 : 400,
                       color: today ? 'white' : (inMonth ? 'var(--color-text)' : 'var(--color-text-light)'),
                       background: today ? 'var(--color-primary)' : 'transparent',
                       border: isSelected ? '2px solid var(--color-primary-lighter)' : 'none',
-                      marginBottom: 4,
+                      marginBottom: 3,
                     }}>
                       {dayNum}
                     </span>
 
-                    {/* Status dot */}
-                    {inMonth && info.status !== 'available' && (
+                    {/* Status dot / Interest count label */}
+                    {inMonth && !info.validated && info.interestCount > 0 && (
                       <span style={{
-                        width: 8,
-                        height: 8,
-                        borderRadius: '50%',
-                        background: dotColor,
-                      }} />
+                        fontSize: '0.58rem',
+                        fontWeight: 700,
+                        background: '#FEF3C7',
+                        color: '#92400E',
+                        padding: '1px 5px',
+                        borderRadius: 999,
+                        border: '1px solid #F59E0B',
+                        textAlign: 'center',
+                        lineHeight: 1.1,
+                      }}>
+                        👀 {info.interestCount} {info.interestCount === 1 ? 'Interesado' : 'Interesados'}
+                      </span>
                     )}
-                    {inMonth && info.status === 'available' && (
+
+                    {inMonth && info.validated && (
+                      <span style={{ fontSize: '0.6rem', color: '#059669', fontWeight: 700 }}>Confirmado</span>
+                    )}
+
+                    {inMonth && !info.validated && info.interestCount === 0 && info.status === 'available' && (
                       <span style={{ fontSize: '0.6rem', color: '#10B981', fontWeight: 600 }}>Libre</span>
                     )}
+
                     {inMonth && info.eventTitle && (
-                      <span style={{ fontSize: '0.58rem', color: '#5B21B6', textAlign: 'center', lineHeight: 1.2, maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <span style={{ fontSize: '0.55rem', color: '#5B21B6', textAlign: 'center', lineHeight: 1.1, maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {info.eventTitle}
                       </span>
                     )}
@@ -370,6 +418,11 @@ He revisado la información. ¿Pueden confirmar disponibilidad?` : ''
                 {selectedInfo?.status === 'promotion' && selectedInfo.eventTitle && (
                   <span className="badge badge-promo">🎉 {selectedInfo.eventTitle}</span>
                 )}
+                {selectedInfo && selectedInfo.interestCount > 0 && !selectedInfo.validated && (
+                  <span className="badge" style={{ background: '#FEF3C7', color: '#92400E', fontSize: '0.72rem', marginTop: 4 }}>
+                    👀 {selectedInfo.interestCount} usuario(s) interesado(s) en esta fecha
+                  </span>
+                )}
               </div>
               <button onClick={() => setSelectedDay(null)} style={{ background: '#F3F4F6', border: 'none', borderRadius: '50%', width: 32, height: 32, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <X size={16} />
@@ -393,19 +446,10 @@ He revisado la información. ¿Pueden confirmar disponibilidad?` : ''
                     {formatMXN(selectedPrice)}
                   </p>
                   {config.deposit_amount ? (
-                    <p style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>Monto de apartado: {formatMXN(config.deposit_amount)}</p>
+                    <p style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>Monto de apartado / anticipo: {formatMXN(config.deposit_amount)}</p>
                   ) : null}
                 </div>
               </div>
-              {config.payment_info && (
-                <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '12px 16px', background: '#F0FFF4', borderRadius: 12 }}>
-                  <Info size={18} color="#059669" style={{ marginTop: 2 }} />
-                  <div>
-                    <p style={{ fontSize: '0.78rem', color: 'var(--color-text-muted)', marginBottom: 4, fontWeight: 600 }}>Información de Pago</p>
-                    <p style={{ fontSize: '0.875rem', whiteSpace: 'pre-line', color: 'var(--color-text)' }}>{config.payment_info}</p>
-                  </div>
-                </div>
-              )}
             </div>
 
             {/* AUTH CHECK & RESERVATION SECTION */}
@@ -418,7 +462,7 @@ He revisado la información. ¿Pueden confirmar disponibilidad?` : ''
                     Inicia sesión para apartar esta fecha
                   </p>
                   <p style={{ fontSize: '0.875rem', color: '#B45309', marginBottom: 16 }}>
-                    Para seguridad de tus datos y agilizar tu apartado, debes contar con un usuario registrado.
+                    Para registrar tu apartado y dar seguimiento a tu fecha, debes tener una cuenta iniciada.
                   </p>
                   <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
                     <Link href="/login" className="btn-secondary" style={{ padding: '10px 20px', fontSize: '0.875rem' }}>
@@ -437,7 +481,7 @@ He revisado la información. ¿Pueden confirmar disponibilidad?` : ''
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 12 }}>
                     <CheckCircle2 size={20} color="#059669" />
                     <div>
-                      <p style={{ fontSize: '0.78rem', color: '#065F46', fontWeight: 600 }}>Usuario registrado</p>
+                      <p style={{ fontSize: '0.78rem', color: '#065F46', fontWeight: 600 }}>Solicitud a nombre de:</p>
                       <p style={{ fontWeight: 700, color: '#064E3B', fontSize: '0.9375rem' }}>
                         {userProfile?.name} {userProfile?.whatsapp ? `(📱 ${userProfile.whatsapp})` : ''}
                       </p>
@@ -488,15 +532,16 @@ He revisado la información. ¿Pueden confirmar disponibilidad?` : ''
                   {/* Main Action Button */}
                   <button
                     onClick={handleApartar}
+                    disabled={submitting}
                     className="btn-whatsapp"
                     style={{ width: '100%', padding: '14px', fontSize: '1rem', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
                   >
                     <MessageCircle size={20} />
-                    Apartar esta fecha por WhatsApp
+                    {submitting ? 'Registrando...' : 'Apartar esta fecha por WhatsApp'}
                   </button>
 
                   <p style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', textAlign: 'center' }}>
-                    Al presionar se abrirá la app de WhatsApp con el mensaje pre-cargado enviado al administrador.
+                    Al hacer clic, tu solicitud se guardará en tu cuenta como <strong>Pendiente de Validación</strong> y se abrirá WhatsApp con el mensaje pre-cargado.
                   </p>
                 </div>
               )}

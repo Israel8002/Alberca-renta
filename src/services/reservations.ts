@@ -28,7 +28,7 @@ export async function getAllReservations() {
   const { data, error } = await supabase
     .from('reservations')
     .select('*, profiles(name, whatsapp, role)')
-    .order('date', { ascending: false })
+    .order('created_at', { ascending: true })
 
   if (error) throw error
   return data || []
@@ -53,6 +53,7 @@ export async function createReservation(payload: {
   time_slot: TimeSlot
   total_amount: number
   deposit_amount: number
+  validated_by_admin?: boolean
   promotion_id?: string
 }) {
   const { data: { user } } = await supabase.auth.getUser()
@@ -98,10 +99,11 @@ export async function updateReservationPayment(id: string, params: {
 }
 
 export async function uploadProofAndUpdate(reservationId: string, file: File, existingUrls: string[]) {
-  const fileName = `proofs/${reservationId}/${Date.now()}-${file.name}`
+  const safeName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_')
+  const fileName = `proofs/${reservationId}/${Date.now()}_${safeName}`
   const { data: uploadData, error: uploadError } = await supabase.storage
     .from('alberca-files')
-    .upload(fileName, file)
+    .upload(fileName, file, { cacheControl: '3600', upsert: true })
 
   if (uploadError) throw uploadError
 
@@ -139,7 +141,7 @@ export async function getMyReservations() {
     .from('reservations')
     .select('*')
     .eq('user_id', user.id)
-    .order('date', { ascending: false })
+    .order('created_at', { ascending: false })
 
   if (error) throw error
   return data || []
@@ -150,7 +152,7 @@ export async function getPendingPayments() {
     .from('reservations')
     .select('*')
     .in('status', ['apartado', 'abono'])
-    .order('date', { ascending: true })
+    .order('created_at', { ascending: true })
 
   if (error) throw error
   return data || []

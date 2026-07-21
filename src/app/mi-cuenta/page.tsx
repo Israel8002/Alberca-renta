@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Upload, Loader2, Calendar, Shield } from 'lucide-react'
+import { Upload, Loader2, Calendar, Shield, Clock } from 'lucide-react'
 import { getMyReservations, uploadProofAndUpdate } from '@/services/reservations'
 import Navbar from '@/components/ui/Navbar'
 import toast from 'react-hot-toast'
@@ -11,13 +11,6 @@ import Link from 'next/link'
 
 function formatMXN(n: number) {
   return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(n)
-}
-
-const STATUS_LABELS: Record<string, { label: string; badge: string; desc: string }> = {
-  apartado:  { label: '🟡 Apartado',  badge: 'badge-apartado', desc: 'Se ha recibido tu apartado' },
-  abono:     { label: '🔵 Con Abono', badge: 'badge-abono',    desc: 'Abono registrado, pago pendiente' },
-  pagado:    { label: '✅ Pagado',    badge: 'badge-pagado',   desc: '¡Listo! Pago completo confirmado' },
-  cancelado: { label: '❌ Cancelado', badge: 'badge-cancelado',desc: 'Reservación cancelada' },
 }
 
 function ProofUploader({ reservation, onUpload }: { reservation: any; onUpload: () => void }) {
@@ -52,7 +45,7 @@ function ProofUploader({ reservation, onUpload }: { reservation: any; onUpload: 
         ? <Loader2 size={16} style={{ animation: 'spin 1s linear infinite', margin: '0 auto' }} />
         : <p style={{ fontSize: '0.78rem', color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
             <Upload size={14} />
-            {isDragActive ? 'Suelta aquí' : 'Subir comprobante de pago (imagen o PDF)'}
+            {isDragActive ? 'Suelta aquí' : 'Subir comprobante de pago o transferencia (imagen o PDF)'}
           </p>
       }
     </div>
@@ -143,7 +136,7 @@ export default function MiCuentaPage() {
 
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: isAdmin ? 12 : 32, marginBottom: 20 }}>
             <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.25rem' }}>
-              Mis Reservaciones
+              Mis Reservaciones y Solicitudes
             </h2>
             <Link href="/reservar" className="btn-primary" style={{ padding: '9px 18px', fontSize: '0.875rem', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
               <Calendar size={15} /> Nueva Reservación
@@ -158,13 +151,15 @@ export default function MiCuentaPage() {
             <div className="card" style={{ textAlign: 'center', padding: 48 }}>
               <p style={{ fontSize: '3rem', marginBottom: 12 }}>🏊</p>
               <p style={{ fontWeight: 700, fontSize: '1.1rem', marginBottom: 8 }}>Aún no tienes reservaciones</p>
-              <p style={{ color: 'var(--color-text-muted)', marginBottom: 20 }}>¡Reserva tu fecha en el calendario y disfruta de un día increíble!</p>
+              <p style={{ color: 'var(--color-text-muted)', marginBottom: 20 }}>¡Selecciona una fecha en el calendario y solicita tu apartado!</p>
               <Link href="/reservar" className="btn-primary">Ver disponibilidad</Link>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               {reservations.map(r => {
-                const statusInfo = STATUS_LABELS[r.status] || STATUS_LABELS.apartado
+                const isValidated = r.validated_by_admin || r.status === 'pagado' || r.status === 'abono'
+                const isPending = !isValidated && r.status === 'apartado'
+
                 const paid = (r.deposit_amount || 0) + (r.abono_amount || 0)
                 const pending = (r.total_amount || 0) - paid
                 const pct = r.total_amount ? Math.round((paid / r.total_amount) * 100) : 0
@@ -180,17 +175,33 @@ export default function MiCuentaPage() {
                           ⏰ {r.time_slot === 'fin_de_semana' ? '12:00 PM – 1:00 AM del siguiente día' : '12:00 PM – 12:00 AM'}
                         </p>
                       </div>
-                      <span className={`badge ${statusInfo.badge}`}>{statusInfo.label}</span>
+                      {isPending ? (
+                        <span className="badge badge-apartado" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <Clock size={12} /> Pendiente de Validación
+                        </span>
+                      ) : r.status === 'abono' ? (
+                        <span className="badge badge-abono">🔵 Abono Validado</span>
+                      ) : r.status === 'pagado' ? (
+                        <span className="badge badge-pagado">✅ Confirmado al 100%</span>
+                      ) : (
+                        <span className="badge badge-cancelado">❌ Ocupada por otro usuario</span>
+                      )}
                     </div>
 
-                    <p style={{ fontSize: '0.8rem', color: '#059669', marginBottom: 12 }}>ℹ️ {statusInfo.desc}</p>
+                    {isPending && (
+                      <div style={{ background: '#FFFBEB', border: '1px solid #F59E0B', borderRadius: 10, padding: '10px 14px', marginBottom: 14 }}>
+                        <p style={{ fontSize: '0.8rem', color: '#92400E', fontWeight: 600 }}>
+                          ⏳ Tu solicitud fue registrada. Para que el administrador valide tu fecha, realiza tu anticipo y sube tu comprobante abajo o envíalo por WhatsApp. El primer usuario en validar pago se queda con la fecha.
+                        </p>
+                      </div>
+                    )}
 
                     {/* Payment progress */}
                     <div style={{ background: '#F3F4F6', borderRadius: 4, height: 8, overflow: 'hidden', marginBottom: 8 }}>
                       <div style={{ height: '100%', width: `${pct}%`, background: pct === 100 ? '#059669' : 'var(--color-primary-lighter)', borderRadius: 4 }} />
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 14, fontSize: '0.8rem', fontFamily: 'monospace' }}>
-                      <span style={{ color: 'var(--color-text-muted)' }}>Pagado: <strong style={{ color: '#059669' }}>{formatMXN(paid)}</strong></span>
+                      <span style={{ color: 'var(--color-text-muted)' }}>Pagado/Anticipo: <strong style={{ color: '#059669' }}>{formatMXN(paid)}</strong></span>
                       <span style={{ color: 'var(--color-text-muted)' }}>Total: <strong>{formatMXN(r.total_amount || 0)}</strong></span>
                       {pending > 0 && <span style={{ color: '#EF4444' }}>Pendiente: <strong>{formatMXN(pending)}</strong></span>}
                     </div>
