@@ -113,8 +113,8 @@ export default function LoginPage() {
           >
             Bienvenido
           </h1>
-          <p style={{ color: 'var(--color-text-muted)', fontSize: '0.9375rem' }}>
-            Alberca Santo Niño
+          <p style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem', fontWeight: 600 }}>
+            Sistema Reservas v1.0 · Parques y Albercas
           </p>
         </div>
 

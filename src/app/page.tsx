@@ -48,9 +48,10 @@ export default async function HomePage() {
         <footer
           style={{
             background: 'var(--color-bg-dark)',
-            color: 'rgba(255,255,255,0.6)',
-            padding: '40px 24px',
+            color: 'rgba(255,255,255,0.7)',
+            padding: '48px 24px',
             textAlign: 'center',
+            borderTop: '1px solid rgba(255,255,255,0.08)',
           }}
         >
           <div
@@ -58,8 +59,8 @@ export default async function HomePage() {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: 8,
-              marginBottom: 12,
+              gap: 10,
+              marginBottom: 16,
             }}
           >
             <span style={{ color: 'var(--color-primary-lighter)', fontSize: '1.5rem' }}>🏊</span>
@@ -67,15 +68,23 @@ export default async function HomePage() {
               style={{
                 fontFamily: "'Playfair Display', serif",
                 color: 'white',
-                fontSize: '1.1rem',
-                fontWeight: 600,
+                fontSize: '1.25rem',
+                fontWeight: 700,
+                letterSpacing: '0.05em',
               }}
             >
-              Alberca Santo Niño
+              SISTEMA DE RESERVAS
             </span>
           </div>
-          <p style={{ fontSize: '0.875rem' }}>
-            © {new Date().getFullYear()} Alberca Santo Niño. Todos los derechos reservados.
+
+          <p style={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.9)', fontWeight: 600, marginBottom: 4 }}>
+            © {new Date().getFullYear()} Sistema de Reservas v1.0
+          </p>
+          <p style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.6)', marginBottom: 12 }}>
+            Todos los derechos reservados
+          </p>
+          <p style={{ fontSize: '0.875rem', color: 'var(--color-primary-lighter)', fontWeight: 600 }}>
+            Contacto Whatsapp: <a href="https://wa.me/526862770831" target="_blank" rel="noopener noreferrer" style={{ color: '#25D366', textDecoration: 'none', fontWeight: 700 }}>6862770831</a>
           </p>
         </footer>
       </main>

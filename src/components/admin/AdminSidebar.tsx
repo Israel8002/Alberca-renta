@@ -28,7 +28,6 @@ export default function AdminSidebar({ role }: { role?: string }) {
   const supabase = createClient()
   const [mobileOpen, setMobileOpen] = useState(false)
 
-  // Close mobile drawer on path change
   useEffect(() => {
     setMobileOpen(false)
   }, [pathname])
@@ -63,9 +62,9 @@ export default function AdminSidebar({ role }: { role?: string }) {
             <Waves size={18} color="white" />
           </div>
           <div>
-            <p style={{ color: 'white', fontWeight: 700, fontSize: '0.875rem', lineHeight: 1.1 }}>Alberca Santo Niño</p>
-            <span style={{ fontSize: '0.65rem', color: role === 'superadmin' ? '#F4A623' : 'var(--color-primary-lighter)', fontWeight: 600 }}>
-              {role === 'superadmin' ? '⭐ Superadmin' : '🔑 Admin'}
+            <p style={{ color: 'white', fontWeight: 700, fontSize: '0.85rem', lineHeight: 1.1 }}>Sistema Reservas v1.0</p>
+            <span style={{ fontSize: '0.62rem', color: role === 'superadmin' ? '#F4A623' : 'var(--color-primary-lighter)', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+              Parques y Albercas
             </span>
           </div>
         </Link>
@@ -99,8 +98,8 @@ export default function AdminSidebar({ role }: { role?: string }) {
                 <Waves size={20} color="white" />
               </div>
               <div>
-                <p style={{ color: 'white', fontWeight: 700, fontSize: '1rem' }}>Panel Admin</p>
-                <p style={{ color: 'var(--color-primary-lighter)', fontSize: '0.75rem' }}>Alberca Santo Niño</p>
+                <p style={{ color: 'white', fontWeight: 700, fontSize: '0.95rem' }}>Sistema Reservas v1.0</p>
+                <p style={{ color: 'var(--color-primary-lighter)', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Parques y Albercas</p>
               </div>
             </div>
             <button onClick={() => setMobileOpen(false)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '50%', width: 36, height: 36, color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -222,11 +221,11 @@ export default function AdminSidebar({ role }: { role?: string }) {
             <Waves size={20} color="white" />
           </div>
           <div>
-            <p style={{ color: 'white', fontWeight: 700, fontSize: '0.9rem', lineHeight: 1.2 }}>
-              Alberca
+            <p style={{ color: 'white', fontWeight: 700, fontSize: '0.85rem', lineHeight: 1.2 }}>
+              Sistema Reservas v1.0
             </p>
-            <p style={{ color: 'var(--color-primary-lighter)', fontSize: '0.7rem', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-              Santo Niño
+            <p style={{ color: 'var(--color-primary-lighter)', fontSize: '0.65rem', letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 700 }}>
+              Parques y Albercas
             </p>
           </div>
         </div>

@@ -135,24 +135,25 @@ export default function Navbar({ isAdmin: propIsAdmin, userName: propUserName }:
               style={{
                 fontFamily: "'Playfair Display', serif",
                 fontWeight: 700,
-                fontSize: '1.1rem',
+                fontSize: '1rem',
                 color: 'var(--color-text)',
-                lineHeight: 1,
+                lineHeight: 1.1,
+                display: 'block',
               }}
             >
-              Alberca
+              Sistema Reservas v1.0
             </span>
             <span
               style={{
                 display: 'block',
                 fontSize: '0.65rem',
-                fontWeight: 600,
+                fontWeight: 700,
                 color: 'var(--color-primary-lighter)',
-                letterSpacing: '0.1em',
+                letterSpacing: '0.08em',
                 textTransform: 'uppercase',
               }}
             >
-              Santo Niño
+              Parques y Albercas
             </span>
           </div>
         </Link>
