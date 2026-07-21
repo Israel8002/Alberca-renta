@@ -1,36 +1,50 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Alberca Santo Niño — Sistema de Gestión y Reservaciones
 
-## Getting Started
+Sistema web completo desarrollado con Next.js 16 (App Router), Supabase (PostgreSQL + Auth + Storage) y TailwindCSS para la administración y reservación de la **Alberca Santo Niño**.
 
-First, run the development server:
+---
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## 🌟 Características Principales
+
+### 📱 Cliente y Público
+- **Landing Page Dinámica:** Hero con carrusel de fotografías, información editable de la alberca, precios y horarios.
+- **Calendario de Disponibilidad:** Visualización mensual interactiva con codificación de colores según el estatus de la fecha (Disponible, Apartado, Abono, Pagado, Promoción, Mantenimiento).
+- **Reservación Directa vía WhatsApp:** Selección de fecha con pre-llenado de datos (nombre y WhatsApp) y generación de enlace directo `wa.me` a los administradores.
+- **Panel del Cliente (`/mi-cuenta`):** Consulta del estado de reservaciones, desglose de montos y barra de avance de pago.
+- **Comprobantes de Pago:** Carga de imágenes y PDFs de comprobantes de pago/transferencias.
+
+### 🔑 Panel de Administración (`/admin`)
+- **Dashboard de Métricas:** Resumen de ingresos mensuales, número de clientes, total de costos y pagos pendientes.
+- **Calendario Administrativo (`/admin/calendario`):** Vista completa del calendario con panel lateral para validar pagos, marcar reservaciones como pagadas o recordar cobros mediante WhatsApp pre-redactado.
+- **Gestión de Reservaciones (`/admin/reservaciones`):** Tabla con filtros por estatus, búsqueda y creación rápida de apartados.
+- **Catálogo de Clientes (`/admin/clientes`):** Listado de usuarios con historial de reservaciones desplegable y enlace directo a WhatsApp.
+- **Pagos Pendientes (`/admin/pagos`):** Seguimiento de usuarios con apartados o abonos parciales, vista previa del mensaje de WhatsApp antes de enviarlo y validación rápida.
+- **Costos y Facturas (`/admin/costos`):** Registro de gastos de mantenimiento, compras o pago a proveedores con carga de recibos/facturas adjuntas.
+- **Eventos y Promociones (`/admin/eventos`):** Creación de descuentos y precios especiales o bloqueo de fechas por mantenimiento.
+- **Configuración del Sitio (`/admin/configuracion`):** Edición de imágenes del carrusel, textos principales, precios base, datos bancarios para transferencias y gestión de números de administradores.
+
+---
+
+## 🛠️ Stack Tecnológico
+
+- **Framework:** Next.js 16 (App Router + React Server Components)
+- **Base de Datos & Autenticación:** Supabase (PostgreSQL + Auth + Row Level Security)
+- **Almacenamiento de Archivos:** Supabase Storage (`alberca-files`)
+- **Estilos:** Vanilla CSS (Design System Tokens) + TailwindCSS
+- **Iconos:** Lucide React
+- **Despliegue:** Vercel
+
+---
+
+## 🚀 Despliegue en Vercel
+
+1. Subir el código a GitHub.
+2. Importar el proyecto en [Vercel](https://vercel.com).
+3. Configurar las siguientes **Variables de Entorno** en el panel de Vercel:
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://oljblmcwebhtqwhqbceg.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=tu_anon_key_aqui
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+4. ¡Desplegar! 🚀

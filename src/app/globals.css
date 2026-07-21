@@ -1,26 +1,362 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 @import "tailwindcss";
 
+/* =============================================
+   DESIGN TOKENS — Alberca Santo Niño
+   ============================================= */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Colores primarios */
+  --color-primary: #005F8E;
+  --color-primary-light: #0077B6;
+  --color-primary-lighter: #00B4D8;
+  --color-accent: #F4A623;
+  --color-accent-light: #FBBF24;
+
+  /* Fondos */
+  --color-bg: #F0FAFF;
+  --color-bg-card: #FFFFFF;
+  --color-bg-dark: #0D2137;
+
+  /* Texto */
+  --color-text: #0D2137;
+  --color-text-muted: #4B7394;
+  --color-text-light: #8AAFC4;
+
+  /* Estados de reservación */
+  --color-available: #10B981;
+  --color-apartado: #F59E0B;
+  --color-abono: #3B82F6;
+  --color-pagado: #059669;
+  --color-cancelado: #EF4444;
+  --color-promo: #8B5CF6;
+  --color-maintenance: #6B7280;
+
+  /* Sombras */
+  --shadow-sm: 0 1px 3px rgba(0,95,142,0.08);
+  --shadow-md: 0 4px 16px rgba(0,95,142,0.12);
+  --shadow-lg: 0 8px 32px rgba(0,95,142,0.18);
+  --shadow-xl: 0 16px 48px rgba(0,95,142,0.24);
+
+  /* Border radius */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-full: 9999px;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+/* =============================================
+   RESET Y BASE
+   ============================================= */
+*, *::before, *::after {
+  box-sizing: border-box;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  scroll-behavior: smooth;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* =============================================
+   TIPOGRAFÍA
+   ============================================= */
+h1, h2, h3, h4 {
+  font-family: 'Playfair Display', Georgia, serif;
+  line-height: 1.25;
+  color: var(--color-text);
+}
+
+.font-mono-data {
+  font-family: 'JetBrains Mono', 'Courier New', monospace;
+}
+
+/* =============================================
+   COMPONENTES DE UI GLOBALES
+   ============================================= */
+
+/* Botón primario */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 24px;
+  background: linear-gradient(135deg, var(--color-primary-light), var(--color-primary-lighter));
+  color: white;
+  font-weight: 600;
+  font-size: 0.9375rem;
+  border-radius: var(--radius-full);
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(0,119,182,0.3);
+  text-decoration: none;
+}
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0,119,182,0.4);
+}
+.btn-primary:active {
+  transform: translateY(0);
+}
+
+/* Botón secundario */
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 24px;
+  background: white;
+  color: var(--color-primary);
+  font-weight: 600;
+  font-size: 0.9375rem;
+  border-radius: var(--radius-full);
+  border: 2px solid var(--color-primary-lighter);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-decoration: none;
+}
+.btn-secondary:hover {
+  background: var(--color-bg);
+  border-color: var(--color-primary);
+  transform: translateY(-1px);
+}
+
+/* Botón WhatsApp */
+.btn-whatsapp {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: linear-gradient(135deg, #25D366, #128C7E);
+  color: white;
+  font-weight: 600;
+  font-size: 0.875rem;
+  border-radius: var(--radius-full);
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-decoration: none;
+  box-shadow: 0 4px 12px rgba(37,211,102,0.3);
+}
+.btn-whatsapp:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(37,211,102,0.4);
+}
+
+/* Botón danger */
+.btn-danger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: linear-gradient(135deg, #EF4444, #DC2626);
+  color: white;
+  font-weight: 600;
+  font-size: 0.875rem;
+  border-radius: var(--radius-full);
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(239,68,68,0.25);
+}
+.btn-danger:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(239,68,68,0.35);
+}
+
+/* Cards */
+.card {
+  background: white;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  padding: 24px;
+  border: 1px solid rgba(0,95,142,0.06);
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+.card:hover {
+  box-shadow: var(--shadow-lg);
+}
+.card-glass {
+  background: rgba(255,255,255,0.85);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,0.6);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+}
+
+/* Inputs */
+.input-field {
+  width: 100%;
+  padding: 12px 16px;
+  border: 2px solid rgba(0,95,142,0.15);
+  border-radius: var(--radius-md);
+  font-size: 0.9375rem;
+  color: var(--color-text);
+  background: white;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  outline: none;
+}
+.input-field:focus {
+  border-color: var(--color-primary-lighter);
+  box-shadow: 0 0 0 3px rgba(0,180,216,0.15);
+}
+.input-field::placeholder {
+  color: var(--color-text-light);
+}
+
+/* Labels */
+.label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Badges de estado */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.badge-available  { background: #D1FAE5; color: var(--color-available); }
+.badge-apartado   { background: #FEF3C7; color: #92400E; }
+.badge-abono      { background: #DBEAFE; color: #1E40AF; }
+.badge-pagado     { background: #D1FAE5; color: #065F46; }
+.badge-cancelado  { background: #FEE2E2; color: #991B1B; }
+.badge-promo      { background: #EDE9FE; color: #5B21B6; }
+.badge-maintenance{ background: #F3F4F6; color: #374151; }
+
+/* =============================================
+   CALENDAR OVERRIDES
+   ============================================= */
+.rbc-calendar {
+  font-family: 'Inter', sans-serif;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  border: 1px solid rgba(0,95,142,0.1);
+}
+.rbc-header {
+  background: var(--color-primary);
+  color: white;
+  padding: 10px 0;
+  font-weight: 600;
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.rbc-today {
+  background: rgba(0,180,216,0.08);
+}
+.rbc-event {
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.rbc-off-range-bg {
+  background: #F9FAFB;
+}
+.rbc-toolbar button {
+  color: var(--color-primary);
+  border-color: var(--color-primary-lighter);
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+}
+.rbc-toolbar button:hover,
+.rbc-toolbar button.rbc-active {
+  background: var(--color-primary);
+  color: white;
+  border-color: var(--color-primary);
+}
+.rbc-toolbar .rbc-toolbar-label {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+/* =============================================
+   ANIMACIONES
+   ============================================= */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(20px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(0,180,216,0.4); }
+  50%       { box-shadow: 0 0 0 8px rgba(0,180,216,0); }
+}
+@keyframes shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+.animate-fade-in    { animation: fadeIn 0.4s ease forwards; }
+.animate-slide-right{ animation: slideInRight 0.3s ease forwards; }
+.animate-pulse-glow { animation: pulse-glow 2s infinite; }
+
+/* Skeleton loader */
+.skeleton {
+  background: linear-gradient(90deg, #E5F3FB 25%, #C7E8F5 50%, #E5F3FB 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: var(--radius-sm);
+}
+
+/* =============================================
+   SCROLLBAR PERSONALIZADO
+   ============================================= */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--color-bg); }
+::-webkit-scrollbar-thumb {
+  background: var(--color-primary-lighter);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-primary);
+}
+
+/* =============================================
+   UTILIDADES
+   ============================================= */
+.water-gradient {
+  background: linear-gradient(135deg, #005F8E 0%, #0077B6 40%, #00B4D8 70%, #90E0EF 100%);
+}
+.water-gradient-subtle {
+  background: linear-gradient(135deg, #E0F7FF 0%, #BAE6FD 50%, #E0F7FF 100%);
+}
+.text-gradient {
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-lighter));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.divider {
+  height: 1px;
+  background: linear-gradient(to right, transparent, rgba(0,95,142,0.15), transparent);
+  margin: 24px 0;
 }
