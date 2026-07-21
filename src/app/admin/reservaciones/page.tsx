@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Plus, Search, Loader2, X, MessageCircle, Check, CreditCard, AlertTriangle, UserCheck, Edit, FileText, Image as ImageIcon } from 'lucide-react'
+import { Plus, Search, Loader2, X, MessageCircle, Check, CreditCard, AlertTriangle, UserCheck, Edit, FileText, Image as ImageIcon, PlusCircle } from 'lucide-react'
 import { createReservation, updateReservationPayment, deleteReservation } from '@/services/reservations'
 import { generateSendPaymentInfoLink, generateDateOccupiedNotificationLink, generatePaymentConfirmedLink, generateAdminPaymentReminderLink } from '@/lib/whatsapp'
 import toast from 'react-hot-toast'
@@ -29,10 +29,7 @@ export default function ReservacionesPage() {
 
   // Edit / Validate Modal State
   const [editingRes, setEditingRes] = useState<any | null>(null)
-  const [editDeposit, setEditDeposit] = useState<string>('0')
-  const [editAbono, setEditAbono] = useState<string>('0')
-  const [editTotal, setEditTotal] = useState<string>('0')
-  const [editStatus, setEditStatus] = useState<string>('apartado')
+  const [newAbonoInput, setNewAbonoInput] = useState<string>('')
   const [viewingProofs, setViewingProofs] = useState<string[] | null>(null)
 
   const supabase = createClient()
@@ -60,10 +57,7 @@ export default function ReservacionesPage() {
 
   function openEditModal(r: any) {
     setEditingRes(r)
-    setEditDeposit(String(r.deposit_amount || 0))
-    setEditAbono(String(r.abono_amount || 0))
-    setEditTotal(String(r.total_amount || 0))
-    setEditStatus(r.status || 'apartado')
+    setNewAbonoInput('')
   }
 
   async function handleSaveEdit(e: React.FormEvent) {
@@ -71,27 +65,27 @@ export default function ReservacionesPage() {
     if (!editingRes) return
     setSaving(true)
     try {
-      const deposit = parseFloat(editDeposit || '0')
-      const abono = parseFloat(editAbono || '0')
-      const total = parseFloat(editTotal || '0')
-      const paid = deposit + abono
+      const addedAbono = parseFloat(newAbonoInput || '0')
+      const currentAbono = editingRes.abono_amount || 0
+      const totalAbono = currentAbono + addedAbono
+      const deposit = editingRes.deposit_amount || 0
+      const total = editingRes.total_amount || 0
+      const totalPaid = deposit + totalAbono
 
-      let finalStatus = editStatus
-      if (paid >= total && total > 0) {
+      let finalStatus = editingRes.status
+      if (totalPaid >= total && total > 0) {
         finalStatus = 'pagado'
-      } else if (abono > 0) {
+      } else if (totalAbono > 0 || deposit > 0) {
         finalStatus = 'abono'
       }
 
       await updateReservationPayment(editingRes.id, {
-        deposit_amount: deposit,
-        abono_amount: abono,
-        total_amount: total,
+        abono_amount: totalAbono,
         status: finalStatus as any,
         validated_by_admin: true,
       })
 
-      toast.success('Monto y estatus actualizados y validados ✅')
+      toast.success(addedAbono > 0 ? `Se sumó un nuevo abono de ${formatMXN(addedAbono)} y se validó la fecha ✅` : 'Solicitud validada por el administrador ✅')
       setEditingRes(null)
       loadData()
     } catch (err: any) {
@@ -272,13 +266,13 @@ export default function ReservacionesPage() {
                   </div>
 
                   <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
-                    {/* Action: Edit & Validate Payment */}
+                    {/* Action: Validate & Register Abono */}
                     <button
                       onClick={() => openEditModal(r)}
-                      title="Editar monto y validar depósito"
+                      title="Validar solicitud o registrar nuevo abono"
                       style={{ padding: '6px 10px', background: 'linear-gradient(135deg, #005F8E, #00B4D8)', border: 'none', borderRadius: 8, color: 'white', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
                     >
-                      <Edit size={13} /> Editar / Validar
+                      <UserCheck size={13} /> Validar / Abono
                     </button>
 
                     {/* Action: Send Banking Details */}
@@ -314,13 +308,13 @@ export default function ReservacionesPage() {
         </div>
       )}
 
-      {/* EDIT & VALIDATE PAYMENT MODAL */}
+      {/* VALIDAR Y REGISTRAR ABONOS MODAL */}
       {editingRes && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 400, background: 'rgba(13,33,55,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, backdropFilter: 'blur(4px)' }}>
           <div className="animate-fade-in" style={{ background: 'white', borderRadius: 20, padding: 28, width: '100%', maxWidth: 500, boxShadow: '0 20px 60px rgba(0,0,0,0.25)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
               <div>
-                <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.25rem' }}>Editar y Validar Monto de Pago</h3>
+                <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.25rem' }}>Validar y Registrar Abonos</h3>
                 <p style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>Cliente: <strong>{editingRes.user_name}</strong> (📱 {editingRes.user_whatsapp})</p>
               </div>
               <button onClick={() => setEditingRes(null)} style={{ background: '#F3F4F6', border: 'none', borderRadius: '50%', width: 32, height: 32, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={16} /></button>
@@ -340,50 +334,73 @@ export default function ReservacionesPage() {
               </div>
             )}
 
+            {/* READONLY INFORMATION CARDS */}
+            <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 12, padding: 14, marginBottom: 16 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, paddingBottom: 8, borderBottom: '1px solid #E2E8F0' }}>
+                <span style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', fontWeight: 600 }}>Costo Total de la Fecha (Sistema):</span>
+                <strong style={{ fontSize: '1.05rem', color: 'var(--color-primary)', fontFamily: 'monospace' }}>
+                  {formatMXN(editingRes.total_amount || 0)}
+                </strong>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, fontSize: '0.8rem', fontFamily: 'monospace' }}>
+                <div>
+                  <span style={{ color: 'var(--color-text-muted)', display: 'block', marginBottom: 2 }}>Anticipo Base:</span>
+                  <strong style={{ color: '#059669' }}>{formatMXN(editingRes.deposit_amount || 0)}</strong>
+                </div>
+                <div>
+                  <span style={{ color: 'var(--color-text-muted)', display: 'block', marginBottom: 2 }}>Abonos Acumulados:</span>
+                  <strong style={{ color: '#3B82F6' }}>{formatMXN(editingRes.abono_amount || 0)}</strong>
+                </div>
+              </div>
+            </div>
+
             <form onSubmit={handleSaveEdit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {/* NEW ABONO INPUT */}
               <div>
-                <label className="label">Monto Total de la Fecha (MXN) *</label>
-                <input className="input-field" type="number" step="0.01" value={editTotal} onChange={e => setEditTotal(e.target.value)} required />
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                <div>
-                  <label className="label">Anticipo / Depósito (MXN)</label>
-                  <input className="input-field" type="number" step="0.01" value={editDeposit} onChange={e => setEditDeposit(e.target.value)} />
-                </div>
-                <div>
-                  <label className="label">Abonos Adicionales (MXN)</label>
-                  <input className="input-field" type="number" step="0.01" value={editAbono} onChange={e => setEditAbono(e.target.value)} />
-                </div>
+                <label className="label" style={{ fontWeight: 700, color: 'var(--color-primary)' }}>
+                  ➕ Registrar Nuevo Abono (MXN)
+                </label>
+                <input
+                  className="input-field"
+                  type="number"
+                  step="0.01"
+                  placeholder="Ej. 500.00 (Ingrese la nueva cantidad recibida)"
+                  value={newAbonoInput}
+                  onChange={e => setNewAbonoInput(e.target.value)}
+                  style={{ fontSize: '1rem', fontWeight: 600 }}
+                />
+                <p style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginTop: 4 }}>
+                  Si dejas este campo en 0, solo se validará la solicitud con los abonos actuales.
+                </p>
               </div>
 
-              {/* Summary Calculation */}
-              <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 12, padding: 14, fontFamily: 'monospace', fontSize: '0.85rem' }}>
+              {/* DYNAMIC CALCULATION PREVIEW */}
+              <div style={{ background: '#FFFBEB', border: '1px solid #F59E0B', borderRadius: 12, padding: 14, fontFamily: 'monospace', fontSize: '0.85rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                  <span>Total Acumulado Pagado:</span>
-                  <strong style={{ color: '#059669' }}>
-                    {formatMXN((parseFloat(editDeposit || '0')) + (parseFloat(editAbono || '0')))}
-                  </strong>
+                  <span>Abonos Anteriores:</span>
+                  <span>{formatMXN(editingRes.abono_amount || 0)}</span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span>Pendiente por Liquidar:</span>
-                  <strong style={{ color: ((parseFloat(editTotal || '0')) - (parseFloat(editDeposit || '0')) - (parseFloat(editAbono || '0'))) > 0 ? '#EF4444' : '#059669' }}>
-                    {formatMXN(Math.max(0, (parseFloat(editTotal || '0')) - (parseFloat(editDeposit || '0')) - (parseFloat(editAbono || '0'))))}
-                  </strong>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, color: '#005F8E', fontWeight: 700 }}>
+                  <span>(+) Nuevo Abono:</span>
+                  <span>+{formatMXN(parseFloat(newAbonoInput || '0'))}</span>
                 </div>
-              </div>
-
-              <div>
-                <label className="label">Estatus de la Reservación</label>
-                <select className="input-field" value={editStatus} onChange={e => setEditStatus(e.target.value)}>
-                  <option value="apartado">🟡 Apartado (Con Anticipo)</option>
-                  <option value="abono">🔵 Abono Parcial</option>
-                  <option value="pagado">✅ Pagado Total / Liquidado</option>
-                  <option value="cancelado">❌ Cancelado / Fecha Ocupada</option>
-                </select>
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #FCD34D', paddingTop: 6, marginTop: 4, fontWeight: 700 }}>
+                  <span>Nuevo Total Pagado Acumulado:</span>
+                  <span style={{ color: '#059669' }}>
+                    {formatMXN((editingRes.deposit_amount || 0) + (editingRes.abono_amount || 0) + (parseFloat(newAbonoInput || '0')))}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4, fontWeight: 700 }}>
+                  <span>Nuevo Saldo Pendiente:</span>
+                  <span style={{ color: ((editingRes.total_amount || 0) - (editingRes.deposit_amount || 0) - (editingRes.abono_amount || 0) - (parseFloat(newAbonoInput || '0'))) > 0 ? '#EF4444' : '#059669' }}>
+                    {formatMXN(Math.max(0, (editingRes.total_amount || 0) - (editingRes.deposit_amount || 0) - (editingRes.abono_amount || 0) - (parseFloat(newAbonoInput || '0'))))}
+                  </span>
+                </div>
               </div>
 
               <button type="submit" className="btn-primary" disabled={saving} style={{ padding: '14px', background: 'linear-gradient(135deg, #059669, #10B981)', borderRadius: 12, fontWeight: 700 }}>
-                {saving ? <><Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> Guardando…</> : '✅ Validar y Guardar Montos'}
+                {saving ? <><Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> Guardando…</> : '✅ Validar y Guardar Abono'}
               </button>
             </form>
           </div>
