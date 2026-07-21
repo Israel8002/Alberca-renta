@@ -40,6 +40,8 @@ export default function AdminCalendarPage() {
   const [selectedItems, setSelectedItems] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [paymentInfo, setPaymentInfo] = useState('')
+  const [siteTitle, setSiteTitle] = useState('')
+
   const supabase = createClient()
 
   useEffect(() => {
@@ -48,8 +50,9 @@ export default function AdminCalendarPage() {
   }, [currentMonth])
 
   async function loadConfig() {
-    const { data } = await supabase.from('site_config').select('payment_info').eq('id', 'main').single()
+    const { data } = await supabase.from('site_config').select('payment_info, home_title').eq('id', 'main').single()
     setPaymentInfo(data?.payment_info || '')
+    setSiteTitle(data?.home_title || 'Sistema Reservas v1.0')
   }
 
   async function loadMonthData() {
@@ -99,6 +102,24 @@ export default function AdminCalendarPage() {
     } catch { toast.error('Error al validar') }
   }
 
+  async function handleNotifyOccupied(r: any) {
+    const link = generateDateOccupiedNotificationLink({
+      clientName: r.user_name,
+      clientPhone: r.user_whatsapp,
+      date: r.date,
+      siteTitle,
+    })
+    window.open(link, '_blank')
+    try {
+      await updateReservationPayment(r.id, { status: 'cancelado', validated_by_admin: false, admin_note: 'Fecha ocupada por otro cliente' })
+      toast.success('Cliente notificado y fecha liberada en calendario admin')
+      loadMonthData()
+      setSelectedDate(null)
+    } catch {
+      toast.error('Error al actualizar')
+    }
+  }
+
   async function handleDeleteReservation(id: string) {
     if (!confirm('¿Eliminar esta reservación?')) return
     try {
@@ -116,22 +137,7 @@ export default function AdminCalendarPage() {
       clientPhone: r.user_whatsapp,
       date: r.date,
       paymentInfo,
-    })
-  }
-
-  function buildDateOccupiedLink(r: any) {
-    return generateDateOccupiedNotificationLink({
-      clientName: r.user_name,
-      clientPhone: r.user_whatsapp,
-      date: r.date,
-    })
-  }
-
-  function buildConfirmedLink(r: any) {
-    return generatePaymentConfirmedLink({
-      clientName: r.user_name,
-      clientPhone: r.user_whatsapp,
-      date: r.date,
+      siteTitle,
     })
   }
 
@@ -150,7 +156,6 @@ export default function AdminCalendarPage() {
     weeks.push(week)
   }
 
-  // Check if date has a validated reservation
   const isDateValidated = selectedItems.some(i => i._type === 'reservation' && (i.validated_by_admin || i.status === 'pagado'))
 
   return (
@@ -348,28 +353,11 @@ export default function AdminCalendarPage() {
 
                         <p style={{ fontWeight: 700, fontSize: '1rem', marginBottom: 2 }}>{item.user_name}</p>
                         <p style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem', marginBottom: 4 }}>📱 WhatsApp: <strong>{item.user_whatsapp}</strong></p>
-                        <p style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginBottom: 8 }}>
-                          ⏰ Solicitó a las: {item.created_at ? new Date(item.created_at).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }) : 'Hora N/A'}
-                        </p>
 
                         <div style={{ background: 'white', border: '1px solid rgba(0,95,142,0.08)', borderRadius: 10, padding: 10, marginBottom: 12, fontFamily: 'monospace', fontSize: '0.85rem' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Total:</span><strong>{formatMXN(item.total_amount || 0)}</strong></div>
                           <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Anticipo sugerido:</span><strong style={{ color: '#D97706' }}>{formatMXN(item.deposit_amount || 0)}</strong></div>
                         </div>
-
-                        {/* Proof files if uploaded */}
-                        {item.proof_urls?.length > 0 && (
-                          <div style={{ marginBottom: 12 }}>
-                            <p style={{ fontSize: '0.75rem', fontWeight: 600, color: '#065F46', marginBottom: 4 }}>Comprobantes del cliente:</p>
-                            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                              {item.proof_urls.map((url: string, i: number) => (
-                                <a key={i} href={url} target="_blank" style={{ padding: '3px 8px', background: '#D1FAE5', borderRadius: 6, fontSize: '0.72rem', color: '#065F46', fontWeight: 600, textDecoration: 'none' }}>
-                                  📎 Comprobante #{i + 1}
-                                </a>
-                              ))}
-                            </div>
-                          </div>
-                        )}
 
                         {/* ADMIN ACTIONS */}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -377,6 +365,7 @@ export default function AdminCalendarPage() {
                           <a
                             href={buildSendPaymentInfoLink(item)}
                             target="_blank"
+                            rel="noopener noreferrer"
                             className="btn-whatsapp"
                             style={{ fontSize: '0.8rem', padding: '9px 14px', justifyContent: 'center' }}
                           >
@@ -394,15 +383,14 @@ export default function AdminCalendarPage() {
                             </button>
                           )}
 
-                          {/* If Date is validated by another user, allow notifying this client */}
-                          {isDateValidated && !isValidated && (
-                            <a
-                              href={buildDateOccupiedLink(item)}
-                              target="_blank"
-                              style={{ fontSize: '0.78rem', padding: '9px 14px', background: '#FEF2F2', border: '1px solid #FCA5A5', color: '#991B1B', borderRadius: 999, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, textDecoration: 'none' }}
+                          {/* Notify Occupied & Mark Cancelled */}
+                          {!isValidated && (
+                            <button
+                              onClick={() => handleNotifyOccupied(item)}
+                              style={{ fontSize: '0.78rem', padding: '9px 14px', background: '#FEF2F2', border: '1px solid #FCA5A5', color: '#991B1B', borderRadius: 999, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, cursor: 'pointer' }}
                             >
-                              <AlertTriangle size={15} /> 📢 Notificar por WA que la fecha ya fue ocupada
-                            </a>
+                              <AlertTriangle size={15} /> 📢 Notificar por WA que la fecha fue ocupada
+                            </button>
                           )}
 
                           <button onClick={() => handleDeleteReservation(item.id)} className="btn-danger" style={{ fontSize: '0.78rem', padding: '6px 12px', opacity: 0.8 }}>
@@ -414,7 +402,6 @@ export default function AdminCalendarPage() {
                       <>
                         <span className="badge badge-promo" style={{ marginBottom: 10 }}>🎉 {item.type}</span>
                         <p style={{ fontWeight: 700 }}>{item.title}</p>
-                        {item.description && <p style={{ color: 'var(--color-text-muted)', fontSize: '0.875rem', marginTop: 4 }}>{item.description}</p>}
                       </>
                     )}
                   </div>

@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Upload, Loader2, Calendar, Shield, Clock } from 'lucide-react'
-import { getMyReservations, uploadProofAndUpdate } from '@/services/reservations'
+import { Upload, Loader2, Calendar, Shield, Clock, Trash2, AlertCircle } from 'lucide-react'
+import { getMyReservations, uploadProofAndUpdate, deleteReservation } from '@/services/reservations'
 import Navbar from '@/components/ui/Navbar'
 import toast from 'react-hot-toast'
 import { useDropzone } from 'react-dropzone'
@@ -73,6 +73,17 @@ export default function MiCuentaPage() {
     setProfile(profileData || { name: user.user_metadata?.name || user.email })
     setReservations(reservs)
     setLoading(false)
+  }
+
+  async function handleDeleteMyReservation(id: string) {
+    if (!confirm('¿Deseas eliminar esta solicitud de tu historial?')) return
+    try {
+      await deleteReservation(id)
+      toast.success('Solicitud eliminada de tu cuenta')
+      loadData()
+    } catch {
+      toast.error('Error al eliminar')
+    }
   }
 
   const isAdmin = profile?.role === 'superadmin' || profile?.role === 'admin'
@@ -157,16 +168,16 @@ export default function MiCuentaPage() {
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               {reservations.map(r => {
-                const isValidated = r.validated_by_admin || r.status === 'pagado' || r.status === 'abono'
-                const isPending = !isValidated && r.status === 'apartado'
+                const isCancelled = r.status === 'cancelado'
+                const isValidated = (r.validated_by_admin || r.status === 'pagado' || r.status === 'abono') && !isCancelled
+                const isPending = !isValidated && !isCancelled
 
-                // Only count paid amount if validated by admin!
                 const paid = isValidated ? ((r.deposit_amount || 0) + (r.abono_amount || 0)) : 0
                 const pending = (r.total_amount || 0) - paid
                 const pct = r.total_amount ? Math.round((paid / r.total_amount) * 100) : 0
 
                 return (
-                  <div key={r.id} className="card" style={{ padding: '20px 22px' }}>
+                  <div key={r.id} className="card" style={{ padding: '20px 22px', borderLeft: isCancelled ? '4px solid #EF4444' : (isValidated ? '4px solid #10B981' : '4px solid #F59E0B') }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
                       <div>
                         <p style={{ fontWeight: 700, fontSize: '1.0625rem', marginBottom: 4 }}>
@@ -176,18 +187,50 @@ export default function MiCuentaPage() {
                           ⏰ {r.time_slot === 'fin_de_semana' ? '12:00 PM – 1:00 AM del siguiente día' : '12:00 PM – 12:00 AM'}
                         </p>
                       </div>
-                      {isPending ? (
-                        <span className="badge badge-apartado" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                          <Clock size={12} /> Pendiente de Validación
-                        </span>
-                      ) : r.status === 'abono' ? (
-                        <span className="badge badge-abono">🔵 Abono Validado</span>
-                      ) : r.status === 'pagado' ? (
-                        <span className="badge badge-pagado">✅ Confirmado al 100%</span>
-                      ) : (
-                        <span className="badge badge-cancelado">❌ Ocupada por otro usuario</span>
-                      )}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        {isCancelled ? (
+                          <span className="badge" style={{ background: '#FEE2E2', color: '#991B1B', border: '1px solid #FCA5A5', fontWeight: 800 }}>
+                            ❌ OCUPADA POR OTRO USUARIO
+                          </span>
+                        ) : isPending ? (
+                          <span className="badge badge-apartado" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                            <Clock size={12} /> Pendiente de Validación
+                          </span>
+                        ) : r.status === 'abono' ? (
+                          <span className="badge badge-abono">🔵 Abono Validado</span>
+                        ) : (
+                          <span className="badge badge-pagado">✅ Confirmado al 100%</span>
+                        )}
+
+                        {/* Delete button for user to clean their list */}
+                        <button
+                          onClick={() => handleDeleteMyReservation(r.id)}
+                          title="Borrar esta solicitud de mi cuenta"
+                          style={{
+                            background: '#F3F4F6',
+                            border: 'none',
+                            borderRadius: 8,
+                            padding: '6px 8px',
+                            cursor: 'pointer',
+                            color: '#6B7280',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 4,
+                            fontSize: '0.75rem',
+                          }}
+                        >
+                          <Trash2 size={14} color="#EF4444" /> Borrar
+                        </button>
+                      </div>
                     </div>
+
+                    {isCancelled && (
+                      <div style={{ background: '#FEF2F2', border: '1px solid #FECDD3', borderRadius: 10, padding: '12px 14px', marginBottom: 14 }}>
+                        <p style={{ fontSize: '0.82rem', color: '#991B1B', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <AlertCircle size={16} /> Esta fecha fue reservada y confirmada por otro cliente. Puedes borrar esta tarjeta con el botón "Borrar" o elegir otra fecha libre.
+                        </p>
+                      </div>
+                    )}
 
                     {isPending && (
                       <div style={{ background: '#FFFBEB', border: '1px solid #F59E0B', borderRadius: 10, padding: '10px 14px', marginBottom: 14 }}>
@@ -197,42 +240,46 @@ export default function MiCuentaPage() {
                       </div>
                     )}
 
-                    {/* Payment progress - Validated by Admin */}
-                    <div style={{ background: '#F3F4F6', borderRadius: 4, height: 8, overflow: 'hidden', marginBottom: 8 }}>
-                      <div style={{ height: '100%', width: `${pct}%`, background: pct === 100 ? '#059669' : 'var(--color-primary-lighter)', borderRadius: 4, transition: 'width 0.3s' }} />
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 14, fontSize: '0.8rem', fontFamily: 'monospace' }}>
-                      <span style={{ color: 'var(--color-text-muted)' }}>
-                        Pagado/Anticipo: <strong style={{ color: isValidated ? '#059669' : '#D97706' }}>{formatMXN(paid)}</strong>
-                        {!isValidated && <span style={{ fontSize: '0.7rem', color: '#B45309' }}> (Pendiente validación)</span>}
-                      </span>
-                      <span style={{ color: 'var(--color-text-muted)' }}>Total: <strong>{formatMXN(r.total_amount || 0)}</strong></span>
-                      {pending > 0 && <span style={{ color: '#EF4444' }}>Pendiente: <strong>{formatMXN(pending)}</strong></span>}
-                    </div>
-
-                    {/* Proof files */}
-                    {r.proof_urls?.length > 0 && (
-                      <div style={{ marginBottom: 10 }}>
-                        <p style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', fontWeight: 600, marginBottom: 6 }}>Comprobantes subidos:</p>
-                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                          {r.proof_urls.map((url: string, i: number) => (
-                            <a key={i} href={url} target="_blank" rel="noopener noreferrer" style={{ padding: '4px 10px', background: '#D1FAE5', borderRadius: 6, fontSize: '0.72rem', color: '#065F46', fontWeight: 600, textDecoration: 'none' }}>
-                              📎 Comprobante {i + 1}
-                            </a>
-                          ))}
+                    {!isCancelled && (
+                      <>
+                        {/* Payment progress */}
+                        <div style={{ background: '#F3F4F6', borderRadius: 4, height: 8, overflow: 'hidden', marginBottom: 8 }}>
+                          <div style={{ height: '100%', width: `${pct}%`, background: pct === 100 ? '#059669' : 'var(--color-primary-lighter)', borderRadius: 4, transition: 'width 0.3s' }} />
                         </div>
-                      </div>
-                    )}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 14, fontSize: '0.8rem', fontFamily: 'monospace' }}>
+                          <span style={{ color: 'var(--color-text-muted)' }}>
+                            Pagado/Anticipo: <strong style={{ color: isValidated ? '#059669' : '#D97706' }}>{formatMXN(paid)}</strong>
+                            {!isValidated && <span style={{ fontSize: '0.7rem', color: '#B45309' }}> (Pendiente validación)</span>}
+                          </span>
+                          <span style={{ color: 'var(--color-text-muted)' }}>Total: <strong>{formatMXN(r.total_amount || 0)}</strong></span>
+                          {pending > 0 && <span style={{ color: '#EF4444' }}>Pendiente: <strong>{formatMXN(pending)}</strong></span>}
+                        </div>
 
-                    {/* Upload proof */}
-                    {r.status !== 'pagado' && r.status !== 'cancelado' && (
-                      <ProofUploader reservation={r} onUpload={loadData} />
-                    )}
+                        {/* Proof files */}
+                        {r.proof_urls?.length > 0 && (
+                          <div style={{ marginBottom: 10 }}>
+                            <p style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', fontWeight: 600, marginBottom: 6 }}>Comprobantes subidos:</p>
+                            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                              {r.proof_urls.map((url: string, i: number) => (
+                                <a key={i} href={url} target="_blank" rel="noopener noreferrer" style={{ padding: '4px 10px', background: '#D1FAE5', borderRadius: 6, fontSize: '0.72rem', color: '#065F46', fontWeight: 600, textDecoration: 'none' }}>
+                                  📎 Comprobante {i + 1}
+                                </a>
+                              ))}
+                            </div>
+                          </div>
+                        )}
 
-                    {r.status === 'pagado' && (
-                      <div style={{ background: '#D1FAE5', borderRadius: 10, padding: '10px 14px', textAlign: 'center', marginTop: 8 }}>
-                        <p style={{ color: '#065F46', fontWeight: 700 }}>🎉 ¡Pago verificado y confirmado! Te esperamos en la alberca.</p>
-                      </div>
+                        {/* Upload proof */}
+                        {r.status !== 'pagado' && (
+                          <ProofUploader reservation={r} onUpload={loadData} />
+                        )}
+
+                        {r.status === 'pagado' && (
+                          <div style={{ background: '#D1FAE5', borderRadius: 10, padding: '10px 14px', textAlign: 'center', marginTop: 8 }}>
+                            <p style={{ color: '#065F46', fontWeight: 700 }}>🎉 ¡Pago verificado y confirmado! Te esperamos en la alberca.</p>
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
                 )

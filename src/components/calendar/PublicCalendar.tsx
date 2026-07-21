@@ -212,6 +212,7 @@ export default function PublicCalendar({ config, adminWhatsapp }: { config: Part
         date: dateStr,
         timeSlot,
         totalAmount: price,
+        siteTitle: config.home_title,
       })
 
       window.open(link, '_blank')
@@ -228,7 +229,7 @@ export default function PublicCalendar({ config, adminWhatsapp }: { config: Part
   const dateFormatted = selectedDay ? format(selectedDay, "EEEE d 'de' MMMM, yyyy", { locale: es }) : ''
 
   // Preview message text
-  const previewMessage = selectedDay && userProfile ? `Hola! 👋 Soy *${userProfile.name}*, me gustaría apartar la alberca Santo Niño.
+  const previewMessage = selectedDay && userProfile ? `Hola! 👋 Soy *${userProfile.name}*, me gustaría apartar una fecha en *${config.home_title || 'Sistema Reservas v1.0'}*.
 
 📅 *Fecha:* ${dateFormatted}
 ⏰ *Horario:* ${getTimeSlotLabel(selectedDay)}

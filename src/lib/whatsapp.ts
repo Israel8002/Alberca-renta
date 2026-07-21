@@ -30,6 +30,8 @@ function formatMXN(amount: number): string {
   }).format(amount)
 }
 
+const DEFAULT_SITE_TITLE = 'Sistema Reservas v1.0'
+
 // 1. Cliente quiere apartar una fecha
 export function generateClientApartadoLink(params: {
   clientName: string
@@ -38,8 +40,10 @@ export function generateClientApartadoLink(params: {
   date: string
   timeSlot: TimeSlot
   totalAmount: number
+  siteTitle?: string
 }): string {
-  const message = `Hola! 👋 Soy *${params.clientName}*, me gustaría apartar la alberca Santo Niño.
+  const site = params.siteTitle || DEFAULT_SITE_TITLE
+  const message = `Hola! 👋 Soy *${params.clientName}*, me gustaría apartar una fecha en *${site}*.
 
 📅 *Fecha:* ${formatDate(params.date)}
 ⏰ *Horario:* ${getTimeSlotLabel(params.timeSlot)}
@@ -57,9 +61,11 @@ export function generateSendPaymentInfoLink(params: {
   clientPhone: string
   date: string
   paymentInfo: string
+  siteTitle?: string
 }): string {
+  const site = params.siteTitle || DEFAULT_SITE_TITLE
   const message = `Hola *${params.clientName}*! 👋
-Te compartimos la información de pago para apartar tu fecha en *Alberca Santo Niño*:
+Te compartimos la información de pago para apartar tu fecha en *${site}*:
 
 📅 *Fecha solicitada:* ${formatDate(params.date)}
 
@@ -83,7 +89,9 @@ export function generateAdminPaymentReminderLink(params: {
   abonoAmount: number
   depositAmount: number
   paymentInfo: string
+  siteTitle?: string
 }): string {
+  const site = params.siteTitle || DEFAULT_SITE_TITLE
   const paid = (params.depositAmount || 0) + (params.abonoAmount || 0)
   const pending = Math.max(0, (params.totalAmount || 0) - paid)
 
@@ -95,7 +103,7 @@ export function generateAdminPaymentReminderLink(params: {
       : 'APARTADO PENDIENTE DE LIQUIDAR 🟡'
 
   const message = `Hola *${params.clientName}* 👋
-Te compartimos el desglose detallado de pago de tu reservación en *Alberca Santo Niño*:
+Te compartimos el desglose detallado de pago de tu reservación en *${site}*:
 
 📅 *Fecha:* ${formatDate(params.date)}
 ⏰ *Horario:* ${getTimeSlotLabel(params.timeSlot)}
@@ -122,14 +130,16 @@ export function generatePaymentConfirmedLink(params: {
   clientName: string
   clientPhone: string
   date: string
+  siteTitle?: string
 }): string {
+  const site = params.siteTitle || DEFAULT_SITE_TITLE
   const message = `¡Hola *${params.clientName}*! ✅
 Tu pago ha sido confirmado y validado por el administrador.
 
 📅 *Reservación:* ${formatDate(params.date)}
 💰 *Estatus:* ¡PAGADO Y CONFIRMADO AL 100%! 🎉
 
-¡Tu fecha ha quedado oficialmente reservada! Te esperamos en *Alberca Santo Niño*. 🏊‍♂️`
+¡Tu fecha ha quedado oficialmente reservada! Te esperamos en *${site}*. 🏊‍♂️`
 
   const phone = cleanPhone(params.clientPhone)
   return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`
@@ -140,9 +150,11 @@ export function generateDateOccupiedNotificationLink(params: {
   clientName: string
   clientPhone: string
   date: string
+  siteTitle?: string
 }): string {
+  const site = params.siteTitle || DEFAULT_SITE_TITLE
   const message = `Hola *${params.clientName}* 👋
-Te informamos que la fecha *${formatDate(params.date)}* en *Alberca Santo Niño* ya fue apartada y confirmada por otro cliente. 🏊‍♂️
+Te informamos que la fecha *${formatDate(params.date)}* en *${site}* ya fue apartada y confirmada por otro cliente. 🏊‍♂️
 
 ¿Te gustaría consultar la disponibilidad para otra fecha en nuestro calendario?
 Visita nuestro sitio: https://alberca-renta.vercel.app/reservar`
@@ -158,12 +170,14 @@ export function generateDateInfoLink(params: {
   timeSlot: TimeSlot
   price: number
   eventDescription?: string
+  siteTitle?: string
 }): string {
+  const site = params.siteTitle || DEFAULT_SITE_TITLE
   const eventPart = params.eventDescription
     ? `\n🎉 *Evento especial:* ${params.eventDescription}`
     : ''
 
-  const message = `Hola! 👋 Me interesa información sobre la disponibilidad:
+  const message = `Hola! 👋 Me interesa información sobre la disponibilidad en *${site}*:
 
 📅 *Fecha:* ${formatDate(params.date)}
 ⏰ *Horario:* ${getTimeSlotLabel(params.timeSlot)}

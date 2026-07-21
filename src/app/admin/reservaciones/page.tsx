@@ -24,7 +24,8 @@ export default function ReservacionesPage() {
   const [form, setForm] = useState(EMPTY_FORM)
   const [saving, setSaving] = useState(false)
   const [paymentInfo, setPaymentInfo] = useState('')
-  const [filterStatus, setFilterStatus] = useState('all')
+  const [siteTitle, setSiteTitle] = useState('')
+  const [filterStatus, setFilterStatus] = useState('pending') // Default to pending active solicitudes
 
   // Edit / Validate Modal State
   const [editingRes, setEditingRes] = useState<any | null>(null)
@@ -42,10 +43,11 @@ export default function ReservacionesPage() {
     setLoading(true)
     const [{ data: res }, { data: config }] = await Promise.all([
       supabase.from('reservations').select('*').order('created_at', { ascending: true }),
-      supabase.from('site_config').select('payment_info').eq('id', 'main').single(),
+      supabase.from('site_config').select('payment_info, home_title').eq('id', 'main').single(),
     ])
     setReservations(res || [])
     setPaymentInfo(config?.payment_info || '')
+    setSiteTitle(config?.home_title || 'Sistema Reservas v1.0')
     setLoading(false)
   }
 
@@ -98,6 +100,30 @@ export default function ReservacionesPage() {
     setSaving(false)
   }
 
+  async function handleNotifyOccupied(r: any) {
+    // 1. Generate WA link with dynamic siteTitle
+    const link = generateDateOccupiedNotificationLink({
+      clientName: r.user_name,
+      clientPhone: r.user_whatsapp,
+      date: r.date,
+      siteTitle,
+    })
+    window.open(link, '_blank')
+
+    // 2. Mark reservation as cancelado in DB so it disappears from active pending requests in admin
+    try {
+      await updateReservationPayment(r.id, {
+        status: 'cancelado',
+        validated_by_admin: false,
+        admin_note: 'Fecha ocupada por otro usuario',
+      })
+      toast.success('Cliente notificado por WA. La solicitud se movió a Ocupada/Cancelada')
+      loadData()
+    } catch {
+      toast.error('Error al actualizar estatus')
+    }
+  }
+
   async function handleSubmitNew(e: React.FormEvent) {
     e.preventDefault()
     setSaving(true)
@@ -131,15 +157,17 @@ export default function ReservacionesPage() {
   }
 
   const statusFilters = [
-    { key: 'all', label: 'Todas' },
     { key: 'pending', label: '⏳ Pendientes de Validación' },
     { key: 'validated', label: '✅ Validadas / Pagadas' },
+    { key: 'cancelado', label: '❌ Ocupadas / Canceladas' },
+    { key: 'all', label: 'Todas' },
   ]
 
   const filtered = reservations
     .filter(r => {
-      if (filterStatus === 'pending') return !r.validated_by_admin && r.status !== 'pagado'
-      if (filterStatus === 'validated') return r.validated_by_admin || r.status === 'pagado'
+      if (filterStatus === 'pending') return !r.validated_by_admin && r.status !== 'pagado' && r.status !== 'cancelado'
+      if (filterStatus === 'validated') return (r.validated_by_admin || r.status === 'pagado') && r.status !== 'cancelado'
+      if (filterStatus === 'cancelado') return r.status === 'cancelado'
       return true
     })
     .filter(r => r.user_name?.toLowerCase().includes(search.toLowerCase()) || r.user_whatsapp?.includes(search) || r.date?.includes(search))
@@ -185,17 +213,18 @@ export default function ReservacionesPage() {
             <span style={{ textAlign: 'right' }}>Acciones Admin</span>
           </div>
           {filtered.length === 0 ? (
-            <div style={{ padding: '32px', textAlign: 'center', color: 'var(--color-text-muted)' }}>No se encontraron registros</div>
+            <div style={{ padding: '32px', textAlign: 'center', color: 'var(--color-text-muted)' }}>No hay solicitudes en esta categoría</div>
           ) : (
             filtered.map((r, i) => {
-              const isValidated = r.validated_by_admin || r.status === 'pagado'
+              const isCancelled = r.status === 'cancelado'
+              const isValidated = (r.validated_by_admin || r.status === 'pagado') && !isCancelled
               const dateStr = new Date(r.date + 'T12:00:00').toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })
               const createdTime = r.created_at ? new Date(r.created_at).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }) : ''
               const paid = (r.deposit_amount || 0) + (r.abono_amount || 0)
               const pending = (r.total_amount || 0) - paid
 
               return (
-                <div key={r.id} style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1.3fr 1fr 1.1fr auto', gap: 0, padding: '14px 16px', borderBottom: '1px solid rgba(0,95,142,0.05)', alignItems: 'center', background: isValidated ? '#F0FDF4' : 'white', transition: 'background 0.15s' }}>
+                <div key={r.id} style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1.3fr 1fr 1.1fr auto', gap: 0, padding: '14px 16px', borderBottom: '1px solid rgba(0,95,142,0.05)', alignItems: 'center', background: isCancelled ? '#FEF2F2' : (isValidated ? '#F0FDF4' : 'white'), transition: 'background 0.15s' }}>
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <p style={{ fontWeight: 700, fontSize: '0.875rem' }}>{r.user_name}</p>
@@ -233,7 +262,9 @@ export default function ReservacionesPage() {
                   </div>
 
                   <div>
-                    {isValidated ? (
+                    {isCancelled ? (
+                      <span className="badge badge-cancelado">❌ Ocupada / Cancelada</span>
+                    ) : isValidated ? (
                       <span className="badge badge-pagado">✅ Validado</span>
                     ) : (
                       <span className="badge badge-apartado">⏳ Pendiente</span>
@@ -252,7 +283,7 @@ export default function ReservacionesPage() {
 
                     {/* Action: Send Banking Details */}
                     <a
-                      href={generateSendPaymentInfoLink({ clientName: r.user_name, clientPhone: r.user_whatsapp, date: r.date, paymentInfo })}
+                      href={generateSendPaymentInfoLink({ clientName: r.user_name, clientPhone: r.user_whatsapp, date: r.date, paymentInfo, siteTitle })}
                       target="_blank"
                       rel="noopener noreferrer"
                       title="Enviar Datos de Pago por WhatsApp"
@@ -261,16 +292,16 @@ export default function ReservacionesPage() {
                       <CreditCard size={13} color="#25D366" /> Datos Pago
                     </a>
 
-                    {/* Action: Notify Occupied */}
-                    <a
-                      href={generateDateOccupiedNotificationLink({ clientName: r.user_name, clientPhone: r.user_whatsapp, date: r.date })}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      title="Notificar por WA que la fecha ya fue ocupada"
-                      style={{ padding: '6px 10px', background: '#FFF1F2', border: '1px solid #FECDD3', borderRadius: 8, color: '#991B1B', fontSize: '0.75rem', fontWeight: 600, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4 }}
-                    >
-                      <AlertTriangle size={13} color="#DC2626" /> Ocupada
-                    </a>
+                    {/* Action: Notify Occupied & Mark Cancelled */}
+                    {!isCancelled && (
+                      <button
+                        onClick={() => handleNotifyOccupied(r)}
+                        title="Notificar por WA que la fecha ya fue ocupada y desocupar solicitud"
+                        style={{ padding: '6px 10px', background: '#FFF1F2', border: '1px solid #FECDD3', borderRadius: 8, color: '#991B1B', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
+                      >
+                        <AlertTriangle size={13} color="#DC2626" /> Ocupada
+                      </button>
+                    )}
 
                     <button onClick={() => handleDelete(r.id)} style={{ padding: '6px 8px', background: '#F3F4F6', border: 'none', borderRadius: 8, cursor: 'pointer', display: 'flex' }}>
                       <X size={13} color="#6B7280" />
@@ -347,7 +378,7 @@ export default function ReservacionesPage() {
                   <option value="apartado">🟡 Apartado (Con Anticipo)</option>
                   <option value="abono">🔵 Abono Parcial</option>
                   <option value="pagado">✅ Pagado Total / Liquidado</option>
-                  <option value="cancelado">❌ Cancelado</option>
+                  <option value="cancelado">❌ Cancelado / Fecha Ocupada</option>
                 </select>
               </div>
 
