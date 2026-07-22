@@ -74,9 +74,9 @@ export default function SoftwareShowcasePage() {
           </div>
         </section>
 
-        {/* MULTI-DEVICE SHOWCASE SECTION (SIN ICONO, MISMO FORMATO PRINCIPAL) */}
+        {/* ACCESIBLE DESDE CUALQUIER DISPOSITIVO (USANDO LAS FOTOS EXACTAS TAL CUAL FUERON DADAS) */}
         <section style={{ padding: '60px 24px 80px', background: '#0A192F', textAlign: 'center' }}>
-          <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+          <div style={{ maxWidth: 1100, margin: '0 auto' }}>
             <h2 style={{
               fontFamily: "'Playfair Display', serif",
               fontSize: 'clamp(2.2rem, 5vw, 3.5rem)',
@@ -91,71 +91,67 @@ export default function SoftwareShowcasePage() {
               Tus clientes y administradores podrán usar la plataforma cómodamente desde Computadoras de Escritorio, Laptops, Tablets o Celulares sin descargar nada.
             </p>
 
-            {/* REAL USER DEMO IMAGES SHOWCASE (FOTO 1, FOTO 2, FOTO 3) */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 24, alignItems: 'stretch' }}>
+            {/* SHOWCASE OF USER PROVIDED IMAGES (FOTO 1, FOTO 2, FOTO 3) IN NATURAL FULL ASPECT RATIO */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 40, alignItems: 'center' }}>
               
-              {/* FOTO 1: ESCRITORIO */}
-              <div style={{
-                background: 'rgba(255,255,255,0.04)',
-                border: '1px solid rgba(255,255,255,0.1)',
-                borderRadius: 20,
-                padding: 20,
-                display: 'flex',
-                flexDirection: 'column',
-                boxShadow: '0 12px 40px rgba(0,0,0,0.3)',
-              }}>
-                <div style={{ marginBottom: 12, textAlign: 'left' }}>
-                  <span className="badge badge-pagado" style={{ fontSize: '0.72rem', fontWeight: 700 }}>💻 Vista Escritorio</span>
-                  <h3 style={{ fontSize: '1.15rem', fontWeight: 700, marginTop: 4, color: 'white' }}>Calendario de Disponibilidad PC</h3>
+              {/* FOTO 1: VISTA ESCRITORIO */}
+              <div style={{ width: '100%', maxWidth: 900, textAlign: 'center' }}>
+                <div style={{ marginBottom: 12 }}>
+                  <span className="badge badge-pagado" style={{ fontSize: '0.85rem', padding: '6px 14px', borderRadius: 8 }}>
+                    💻 Vista Escritorio (PC / Laptop)
+                  </span>
                 </div>
-                <div style={{ borderRadius: 12, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.1)', flex: 1, background: 'white' }}>
-                  <img src="/demo-desktop.png" alt="Foto 1: Vista Escritorio Calendario Disponibilidad" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                <div style={{ borderRadius: 16, overflow: 'hidden', boxShadow: '0 16px 50px rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.12)' }}>
+                  <img
+                    src="/demo-desktop.png"
+                    alt="Foto 1: Vista Escritorio Calendario Disponibilidad"
+                    style={{ width: '100%', height: 'auto', display: 'block' }}
+                  />
                 </div>
               </div>
 
-              {/* FOTO 2: TABLET */}
-              <div style={{
-                background: 'rgba(255,255,255,0.04)',
-                border: '1px solid rgba(255,255,255,0.1)',
-                borderRadius: 20,
-                padding: 20,
-                display: 'flex',
-                flexDirection: 'column',
-                boxShadow: '0 12px 40px rgba(0,0,0,0.3)',
-              }}>
-                <div style={{ marginBottom: 12, textAlign: 'left' }}>
-                  <span className="badge badge-abono" style={{ fontSize: '0.72rem', fontWeight: 700 }}>📲 Vista Tablet</span>
-                  <h3 style={{ fontSize: '1.15rem', fontWeight: 700, marginTop: 4, color: 'white' }}>Navegación Fluida iPad / Tablet</h3>
+              {/* FOTO 2 (TABLET) & FOTO 3 (CELULAR) SIDE BY SIDE IN NATURAL FORMAT */}
+              <div style={{ display: 'flex', gap: 32, flexWrap: 'wrap', justifyContent: 'center', alignItems: 'flex-start', width: '100%', maxWidth: 900 }}>
+                
+                {/* FOTO 2: TABLET */}
+                <div style={{ flex: '1 1 360px', maxWidth: 440, textAlign: 'center' }}>
+                  <div style={{ marginBottom: 12 }}>
+                    <span className="badge badge-abono" style={{ fontSize: '0.85rem', padding: '6px 14px', borderRadius: 8 }}>
+                      📲 Vista Tablet (iPad)
+                    </span>
+                  </div>
+                  <div style={{ borderRadius: 16, overflow: 'hidden', boxShadow: '0 16px 50px rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.12)' }}>
+                    <img
+                      src="/demo-tablet.png"
+                      alt="Foto 2: Vista Tablet Calendario Disponibilidad"
+                      style={{ width: '100%', height: 'auto', display: 'block' }}
+                    />
+                  </div>
                 </div>
-                <div style={{ borderRadius: 12, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.1)', flex: 1, background: 'white' }}>
-                  <img src="/demo-tablet.png" alt="Foto 2: Vista Tablet Calendario Disponibilidad" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-                </div>
-              </div>
 
-              {/* FOTO 3: CELULAR */}
-              <div style={{
-                background: 'rgba(255,255,255,0.04)',
-                border: '1px solid rgba(255,255,255,0.1)',
-                borderRadius: 20,
-                padding: 20,
-                display: 'flex',
-                flexDirection: 'column',
-                boxShadow: '0 12px 40px rgba(0,0,0,0.3)',
-              }}>
-                <div style={{ marginBottom: 12, textAlign: 'left' }}>
-                  <span className="badge badge-apartado" style={{ fontSize: '0.72rem', fontWeight: 700 }}>📱 Vista Celular</span>
-                  <h3 style={{ fontSize: '1.15rem', fontWeight: 700, marginTop: 4, color: 'white' }}>Formato Móvil con Menú Hamburguesa</h3>
+                {/* FOTO 3: CELULAR */}
+                <div style={{ flex: '1 1 280px', maxWidth: 340, textAlign: 'center' }}>
+                  <div style={{ marginBottom: 12 }}>
+                    <span className="badge badge-apartado" style={{ fontSize: '0.85rem', padding: '6px 14px', borderRadius: 8 }}>
+                      📱 Vista Celular (Smartphone)
+                    </span>
+                  </div>
+                  <div style={{ borderRadius: 16, overflow: 'hidden', boxShadow: '0 16px 50px rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.12)' }}>
+                    <img
+                      src="/demo-mobile.png"
+                      alt="Foto 3: Vista Celular Calendario Disponibilidad"
+                      style={{ width: '100%', height: 'auto', display: 'block' }}
+                    />
+                  </div>
                 </div>
-                <div style={{ borderRadius: 12, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.1)', flex: 1, background: 'white' }}>
-                  <img src="/demo-mobile.png" alt="Foto 3: Vista Celular Calendario Disponibilidad" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-                </div>
+
               </div>
 
             </div>
           </div>
         </section>
 
-        {/* CLIENT FEATURES SECTION (SIN ICONO, MISMO FORMATO PRINCIPAL) */}
+        {/* FUNCIONES PARA EL CLIENTE (MISMO FORMATO PRINCIPAL) */}
         <section style={{ padding: '80px 24px', maxWidth: 1100, margin: '0 auto', textAlign: 'center' }}>
           <h2 style={{
             fontFamily: "'Playfair Display', serif",
@@ -192,7 +188,7 @@ export default function SoftwareShowcasePage() {
           </div>
         </section>
 
-        {/* ADMIN SECTION WITH FOTO 4 AND FOTO 5 */}
+        {/* FUNCIONES PARA EL ADMINISTRADOR (CON FOTO 4 Y FOTO 5 EN FORMATO ORIGINAL) */}
         <section style={{ padding: '80px 24px', background: '#0A192F', textAlign: 'center' }}>
           <div style={{ maxWidth: 1100, margin: '0 auto' }}>
             <h2 style={{
@@ -209,30 +205,38 @@ export default function SoftwareShowcasePage() {
               Control absoluto del negocio con métricas financieras en tiempo real, gestión de abonos y solicitudes por orden cronológico.
             </p>
 
-            {/* FOTO 4 & FOTO 5 ADMIN SHOWCASE */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 28, marginBottom: 48, textAlign: 'left' }}>
+            {/* FOTO 4 & FOTO 5 SHOWCASE */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 36, marginBottom: 48, alignItems: 'center' }}>
               
               {/* FOTO 4: DASHBOARD ADMIN */}
-              <div style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 20, padding: 20, boxShadow: '0 12px 40px rgba(0,0,0,0.3)' }}>
+              <div style={{ width: '100%', maxWidth: 900, textAlign: 'center' }}>
                 <div style={{ marginBottom: 12 }}>
-                  <span className="badge badge-pagado" style={{ fontSize: '0.72rem', fontWeight: 700 }}>📊 Foto 4: Panel Dashboard</span>
-                  <h3 style={{ fontSize: '1.15rem', fontWeight: 700, marginTop: 4, color: 'white' }}>Métricas Financieras y Control de Clientes</h3>
-                  <p style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.65)' }}>Calcula ingresos validados, saldo de costos mensuales y pagos pendientes automáticamente.</p>
+                  <span className="badge badge-pagado" style={{ fontSize: '0.85rem', padding: '6px 14px', borderRadius: 8 }}>
+                    📊 Foto 4: Panel Dashboard de Administración
+                  </span>
                 </div>
-                <div style={{ borderRadius: 12, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.1)', background: 'white' }}>
-                  <img src="/demo-admin-dashboard.png" alt="Foto 4: Panel de Administración Dashboard" style={{ width: '100%', height: 'auto', objectFit: 'cover', display: 'block' }} />
+                <div style={{ borderRadius: 16, overflow: 'hidden', boxShadow: '0 16px 50px rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.12)' }}>
+                  <img
+                    src="/demo-admin-dashboard.png"
+                    alt="Foto 4: Panel de Administración Dashboard"
+                    style={{ width: '100%', height: 'auto', display: 'block' }}
+                  />
                 </div>
               </div>
 
               {/* FOTO 5: CALENDARIO ADMIN */}
-              <div style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 20, padding: 20, boxShadow: '0 12px 40px rgba(0,0,0,0.3)' }}>
+              <div style={{ width: '100%', maxWidth: 900, textAlign: 'center' }}>
                 <div style={{ marginBottom: 12 }}>
-                  <span className="badge badge-abono" style={{ fontSize: '0.72rem', fontWeight: 700 }}>📅 Foto 5: Calendario de Administración</span>
-                  <h3 style={{ fontSize: '1.15rem', fontWeight: 700, marginTop: 4, color: 'white' }}>Gestión por Orden Cronológico (FIFO)</h3>
-                  <p style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.65)' }}>Identifica quién solicitó primero la fecha (#1), valida depósitos y desocupa fechas notificando a los demás.</p>
+                  <span className="badge badge-abono" style={{ fontSize: '0.85rem', padding: '6px 14px', borderRadius: 8 }}>
+                    📅 Foto 5: Calendario de Gestión de Solicitudes
+                  </span>
                 </div>
-                <div style={{ borderRadius: 12, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.1)', background: 'white' }}>
-                  <img src="/demo-admin-calendar.png" alt="Foto 5: Calendario de Administración" style={{ width: '100%', height: 'auto', objectFit: 'cover', display: 'block' }} />
+                <div style={{ borderRadius: 16, overflow: 'hidden', boxShadow: '0 16px 50px rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.12)' }}>
+                  <img
+                    src="/demo-admin-calendar.png"
+                    alt="Foto 5: Calendario de Administración"
+                    style={{ width: '100%', height: 'auto', display: 'block' }}
+                  />
                 </div>
               </div>
 
