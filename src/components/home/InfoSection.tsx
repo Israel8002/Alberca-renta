@@ -1,11 +1,27 @@
+'use client'
+
+import { useEffect, useState } from 'react'
 import { Clock, DollarSign, MapPin, Phone, Info } from 'lucide-react'
 import { SiteConfig } from '@/types'
+import { createClient } from '@/lib/supabase/client'
+import Link from 'next/link'
 
 interface InfoSectionProps {
   config: Partial<SiteConfig>
 }
 
 export default function InfoSection({ config }: InfoSectionProps) {
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
+
+  useEffect(() => {
+    async function checkUser() {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      setIsLoggedIn(!!user)
+    }
+    checkUser()
+  }, [])
+
   const formatMXN = (n: number) =>
     new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(n)
 
@@ -19,7 +35,7 @@ export default function InfoSection({ config }: InfoSectionProps) {
             className="badge badge-available"
             style={{ fontSize: '0.7rem', marginBottom: 12 }}
           >
-            🏊 Información
+            Información
           </span>
           <h2 style={{ fontSize: 'clamp(1.75rem, 4vw, 2.5rem)', marginBottom: 16 }}>
             {config.home_title || 'Alberca Santo Niño'}
@@ -204,7 +220,7 @@ export default function InfoSection({ config }: InfoSectionProps) {
             Consulta la disponibilidad del calendario y aparta tu fecha en minutos.
           </p>
           <div style={{ display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <a
+            <Link
               href="/reservar"
               style={{
                 display: 'inline-flex',
@@ -222,27 +238,50 @@ export default function InfoSection({ config }: InfoSectionProps) {
               }}
             >
               📅 Ver Calendario
-            </a>
-            <a
-              href="/registro"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 8,
-                padding: '14px 32px',
-                background: 'rgba(255,255,255,0.15)',
-                backdropFilter: 'blur(8px)',
-                border: '2px solid rgba(255,255,255,0.4)',
-                color: 'white',
-                fontWeight: 700,
-                borderRadius: 999,
-                fontSize: '1rem',
-                textDecoration: 'none',
-                transition: 'all 0.2s',
-              }}
-            >
-              👤 Crear Cuenta
-            </a>
+            </Link>
+            {!isLoggedIn ? (
+              <Link
+                href="/registro"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  padding: '14px 32px',
+                  background: 'rgba(255,255,255,0.15)',
+                  backdropFilter: 'blur(8px)',
+                  border: '2px solid rgba(255,255,255,0.4)',
+                  color: 'white',
+                  fontWeight: 700,
+                  borderRadius: 999,
+                  fontSize: '1rem',
+                  textDecoration: 'none',
+                  transition: 'all 0.2s',
+                }}
+              >
+                👤 Crear Cuenta
+              </Link>
+            ) : (
+              <Link
+                href="/mi-cuenta"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  padding: '14px 32px',
+                  background: 'rgba(255,255,255,0.15)',
+                  backdropFilter: 'blur(8px)',
+                  border: '2px solid rgba(255,255,255,0.4)',
+                  color: 'white',
+                  fontWeight: 700,
+                  borderRadius: 999,
+                  fontSize: '1rem',
+                  textDecoration: 'none',
+                  transition: 'all 0.2s',
+                }}
+              >
+                👤 Mis Reservaciones
+              </Link>
+            )}
           </div>
         </div>
       </div>

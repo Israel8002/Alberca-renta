@@ -92,7 +92,7 @@ export default function HeroCarousel({ images, title }: HeroCarouselProps) {
               backdropFilter: 'blur(8px)',
             }}
           >
-            🏊 Renta por día
+            Renta por día
           </span>
 
           {/* Title */}
