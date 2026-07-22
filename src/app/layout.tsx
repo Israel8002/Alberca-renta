@@ -3,12 +3,12 @@ import './globals.css'
 import { Toaster } from 'react-hot-toast'
 
 export const metadata: Metadata = {
-  title: 'Alberca Santo Niño',
-  description: 'Reserva tu día de diversión y descanso en Alberca Santo Niño. Disponibilidad en línea, precios y horarios.',
-  keywords: ['alberca', 'renta alberca', 'Alberca Santo Niño', 'reservaciones'],
+  title: 'Sistema de Reservas En Linea',
+  description: 'Reserva tu día de diversión y descanso. Disponibilidad en línea, precios y horarios.',
+  keywords: ['alberca', 'renta alberca', 'parque', 'reservaciones'],
   openGraph: {
-    title: 'Alberca Santo Niño',
-    description: 'Reserva tu día de diversión y descanso en Alberca Santo Niño.',
+    title: 'Sistema de Reservas En Linea',
+    description: 'Reserva tu día de diversión y descanso. Disponibilidad en línea, precios y horarios.',
     type: 'website',
   },
 }

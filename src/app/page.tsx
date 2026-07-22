@@ -1,50 +1,52 @@
-import { createClient } from '@/lib/supabase/server'
-import { SiteConfig } from '@/types'
 import Navbar from '@/components/ui/Navbar'
 import HeroCarousel from '@/components/home/HeroCarousel'
-import InfoSection from '@/components/home/InfoSection'
+import PublicCalendar from '@/components/calendar/PublicCalendar'
+import { createClient } from '@/lib/supabase/client'
+import { SiteConfig } from '@/types'
+import Link from 'next/link'
+
+async function getConfig(): Promise<{ config: Partial<SiteConfig>; banners: string[] }> {
+  const supabase = createClient()
+  const [{ data: config }, { data: banners }] = await Promise.all([
+    supabase.from('site_config').select('*').eq('id', 'main').maybeSingle(),
+    supabase.from('banners').select('image_url').eq('is_active', true).order('sort_order', { ascending: true }),
+  ])
+
+  return {
+    config: config || {},
+    banners: banners?.map(b => b.image_url) || ['/alberca1.jpg', '/alberca2.jpg', '/alberca3.jpg'],
+  }
+}
 
 export default async function HomePage() {
-  const supabase = await createClient()
-
-  // Fetch site config
-  const { data: configData } = await supabase
-    .from('site_config')
-    .select('*')
-    .eq('id', 'main')
-    .single()
-
-  // Check auth
-  const { data: { user } } = await supabase.auth.getUser()
-  let profile = null
-  if (user) {
-    const { data } = await supabase
-      .from('profiles')
-      .select('name, role')
-      .eq('id', user.id)
-      .single()
-    profile = data
-  }
-
-  const config: Partial<SiteConfig> = configData || {}
+  const { config, banners } = await getConfig()
 
   return (
     <>
-      <Navbar
-        isAdmin={profile?.role === 'admin' || profile?.role === 'superadmin'}
-        userName={profile?.name}
-      />
-      <main>
-        {/* Hero con carrusel */}
-        <HeroCarousel
-          images={config.carousel_images || []}
-          title={config.home_title || 'Alberca Santo Niño'}
-        />
+      <Navbar />
 
-        {/* Info Section */}
-        <InfoSection config={config} />
+      <main style={{ minHeight: '100vh', background: 'var(--color-bg)' }}>
+        {/* Hero Carousel Section */}
+        <section style={{ maxWidth: 1200, margin: '24px auto 0', padding: '0 16px' }}>
+          <HeroCarousel images={banners.length > 0 ? banners : ['/alberca1.jpg', '/alberca2.jpg', '/alberca3.jpg']} title={config.home_title || 'Sistema Reservas v1.0'} />
+        </section>
 
-        {/* Footer */}
+        {/* Welcome Section */}
+        <section style={{ textAlign: 'center', padding: '36px 16px 20px', maxWidth: 800, margin: '0 auto' }}>
+          <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: '2.25rem', color: 'var(--color-primary-dark)', marginBottom: 12 }}>
+            {config.home_title || 'Sistema Reservas v1.0'}
+          </h1>
+          <p style={{ fontSize: '1.05rem', color: 'var(--color-text-muted)', lineHeight: 1.6 }}>
+            {config.home_description || 'Consulta nuestra disponibilidad en tiempo real y aparta tu fecha ideal directamente por WhatsApp.'}
+          </p>
+        </section>
+
+        {/* Public Calendar Section */}
+        <section style={{ padding: '0 0 60px' }}>
+          <PublicCalendar config={config} adminWhatsapp={config.weekday_price ? String(config.admin_whatsapp_numbers?.[0] || '6862770831') : '6862770831'} />
+        </section>
+
+        {/* FOOTER */}
         <footer
           style={{
             background: 'var(--color-bg-dark)',
@@ -84,7 +86,7 @@ export default async function HomePage() {
             Todos los derechos reservados
           </p>
           <p style={{ fontSize: '0.875rem', color: 'var(--color-primary-lighter)', fontWeight: 600 }}>
-            Contacto Whatsapp: <a href="https://wa.me/526862770831" target="_blank" rel="noopener noreferrer" style={{ color: '#25D366', textDecoration: 'none', fontWeight: 700 }}>6862770831</a>
+            Contacto Whatsapp / Adquirir Sistema: <Link href="/sistema-software" style={{ color: '#25D366', textDecoration: 'underline', fontWeight: 700 }}>6862770831</Link>
           </p>
         </footer>
       </main>
