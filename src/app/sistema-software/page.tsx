@@ -1,6 +1,5 @@
 import Link from 'next/link'
-import { MessageCircle, Award, CheckCircle, Calendar, Upload, Users, DollarSign, CreditCard, Zap } from 'lucide-react'
-import Navbar from '@/components/ui/Navbar'
+import { MessageCircle, Award, CheckCircle, Calendar, Upload, Users, DollarSign, CreditCard, Zap, ArrowLeft } from 'lucide-react'
 
 export const metadata = {
   title: 'Sistema de Reservas En Linea — Software de Gestión para Parques y Albercas',
@@ -12,7 +11,44 @@ export default function SoftwareShowcasePage() {
 
   return (
     <>
-      <Navbar />
+      {/* CLEAN SALES HEADER (SIN BOTONES DE NAVBAR) */}
+      <header style={{
+        background: '#0D2137',
+        borderBottom: '1px solid rgba(255,255,255,0.08)',
+        padding: '16px 24px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{
+            width: 40,
+            height: 40,
+            borderRadius: '50%',
+            background: 'linear-gradient(135deg, #005F8E, #00B4D8)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: 'white',
+            fontSize: '1.2rem',
+          }}>
+            🏊
+          </div>
+          <div>
+            <span style={{ fontFamily: "'Playfair Display', serif", fontWeight: 700, fontSize: '1.15rem', color: 'white', display: 'block' }}>
+              Sistema de Reservas En Línea
+            </span>
+            <span style={{ fontSize: '0.72rem', color: 'var(--color-primary-lighter)', fontWeight: 700, letterSpacing: '0.05em' }}>
+              PARQUES Y ALBERCAS
+            </span>
+          </div>
+        </div>
+
+        <Link href="/" style={{ color: 'rgba(255,255,255,0.7)', textDecoration: 'none', fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <ArrowLeft size={16} /> Volver al sitio
+        </Link>
+      </header>
+
       <main style={{ minHeight: '100vh', background: '#0D2137', color: 'white', overflowX: 'hidden' }}>
         
         {/* HERO SECTION */}
@@ -36,7 +72,7 @@ export default function SoftwareShowcasePage() {
               display: 'inline-block',
               marginBottom: 20,
             }}>
-              ⚡ Software de Gestión & Reservaciones v1.0
+              ⚡ Software de Gestión & Reservaciones
             </span>
 
             <h1 style={{
@@ -74,7 +110,7 @@ export default function SoftwareShowcasePage() {
           </div>
         </section>
 
-        {/* ACCESIBLE DESDE CUALQUIER DISPOSITIVO (REDUCIDO 50% Y NOMBRES CORREGIDOS POR IMAGEN) */}
+        {/* ACCESIBLE DESDE CUALQUIER DISPOSITIVO */}
         <section style={{ padding: '60px 24px 80px', background: '#0A192F', textAlign: 'center' }}>
           <div style={{ maxWidth: 1100, margin: '0 auto' }}>
             <h2 style={{
@@ -91,10 +127,10 @@ export default function SoftwareShowcasePage() {
               Tus clientes y administradores podrán usar la plataforma cómodamente desde Computadoras de Escritorio, Laptops, Tablets o Celulares sin descargar nada.
             </p>
 
-            {/* SHOWCASE OF USER PROVIDED IMAGES (REDUCIDAS 50% PARA MEJOR VISUALIZACIÓN) */}
+            {/* SHOWCASE OF USER PROVIDED IMAGES */}
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 32, justifyContent: 'center', alignItems: 'flex-start' }}>
               
-              {/* FOTO 1: AHORA ETIQUETADA COMO TABLET (iPad) */}
+              {/* FOTO 1: VISTA TABLET */}
               <div style={{ flex: '0 1 450px', maxWidth: 450, textAlign: 'center' }}>
                 <div style={{ marginBottom: 12 }}>
                   <span className="badge badge-abono" style={{ fontSize: '0.85rem', padding: '6px 14px', borderRadius: 8 }}>
@@ -110,7 +146,7 @@ export default function SoftwareShowcasePage() {
                 </div>
               </div>
 
-              {/* FOTO 2: AHORA ETIQUETADA COMO CELULAR (Smartphone) */}
+              {/* FOTO 2: VISTA CELULAR */}
               <div style={{ flex: '0 1 220px', maxWidth: 220, textAlign: 'center' }}>
                 <div style={{ marginBottom: 12 }}>
                   <span className="badge badge-apartado" style={{ fontSize: '0.85rem', padding: '6px 14px', borderRadius: 8 }}>
@@ -126,7 +162,7 @@ export default function SoftwareShowcasePage() {
                 </div>
               </div>
 
-              {/* FOTO 3: AHORA ETIQUETADA COMO ESCRITORIO (PC / Laptop) */}
+              {/* FOTO 3: VISTA ESCRITORIO */}
               <div style={{ flex: '0 1 450px', maxWidth: 450, textAlign: 'center' }}>
                 <div style={{ marginBottom: 12 }}>
                   <span className="badge badge-pagado" style={{ fontSize: '0.85rem', padding: '6px 14px', borderRadius: 8 }}>
@@ -146,7 +182,7 @@ export default function SoftwareShowcasePage() {
           </div>
         </section>
 
-        {/* FUNCIONES PARA EL CLIENTE (MISMO FORMATO PRINCIPAL) */}
+        {/* FUNCIONES PARA EL CLIENTE */}
         <section style={{ padding: '80px 24px', maxWidth: 1100, margin: '0 auto', textAlign: 'center' }}>
           <h2 style={{
             fontFamily: "'Playfair Display', serif",
@@ -183,7 +219,7 @@ export default function SoftwareShowcasePage() {
           </div>
         </section>
 
-        {/* FUNCIONES PARA EL ADMINISTRADOR (CON FOTO 4 Y FOTO 5 EN FORMATO OPTIMIZADO AL 50%) */}
+        {/* FUNCIONES PARA EL ADMINISTRADOR */}
         <section style={{ padding: '80px 24px', background: '#0A192F', textAlign: 'center' }}>
           <div style={{ maxWidth: 1100, margin: '0 auto' }}>
             <h2 style={{
@@ -200,7 +236,7 @@ export default function SoftwareShowcasePage() {
               Control absoluto del negocio con métricas financieras en tiempo real, gestión de abonos y solicitudes por orden cronológico.
             </p>
 
-            {/* FOTO 4 & FOTO 5 SHOWCASE OPTIMIZADAS AL 50% */}
+            {/* FOTO 4 & FOTO 5 SHOWCASE */}
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 28, marginBottom: 48, justifyContent: 'center', alignItems: 'flex-start' }}>
               
               {/* FOTO 4: DASHBOARD ADMIN */}
