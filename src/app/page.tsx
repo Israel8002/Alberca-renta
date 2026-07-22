@@ -3,6 +3,7 @@ import { SiteConfig } from '@/types'
 import Navbar from '@/components/ui/Navbar'
 import HeroCarousel from '@/components/home/HeroCarousel'
 import InfoSection from '@/components/home/InfoSection'
+import { Waves } from 'lucide-react'
 
 export default async function HomePage() {
   const supabase = await createClient()
@@ -63,7 +64,19 @@ export default async function HomePage() {
               marginBottom: 16,
             }}
           >
-            <span style={{ color: 'var(--color-primary-lighter)', fontSize: '1.5rem' }}>🏊</span>
+            <div
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: '50%',
+                background: 'linear-gradient(135deg, #005F8E, #00B4D8)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Waves size={20} color="white" />
+            </div>
             <span
               style={{
                 fontFamily: "'Playfair Display', serif",

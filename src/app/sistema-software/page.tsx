@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { MessageCircle, Award, CheckCircle, Calendar, Upload, Users, DollarSign, CreditCard, Zap, ArrowLeft } from 'lucide-react'
+import { MessageCircle, Award, CheckCircle, Calendar, Upload, Users, DollarSign, CreditCard, Zap, ArrowLeft, Waves } from 'lucide-react'
 
 export const metadata = {
   title: 'Sistema de Reservas En Linea — Software de Gestión para Parques y Albercas',
@@ -11,7 +11,7 @@ export default function SoftwareShowcasePage() {
 
   return (
     <>
-      {/* CLEAN SALES HEADER (SIN BOTONES DE NAVBAR) */}
+      {/* CLEAN SALES HEADER (CON EL ICONO OFICIAL WAVES DEL SISTEMA) */}
       <header style={{
         background: '#0D2137',
         borderBottom: '1px solid rgba(255,255,255,0.08)',
@@ -22,17 +22,15 @@ export default function SoftwareShowcasePage() {
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <div style={{
-            width: 40,
-            height: 40,
+            width: 38,
+            height: 38,
             borderRadius: '50%',
             background: 'linear-gradient(135deg, #005F8E, #00B4D8)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            color: 'white',
-            fontSize: '1.2rem',
           }}>
-            🏊
+            <Waves size={20} color="white" />
           </div>
           <div>
             <span style={{ fontFamily: "'Playfair Display', serif", fontWeight: 700, fontSize: '1.15rem', color: 'white', display: 'block' }}>
